@@ -16,7 +16,7 @@ def files_rename (filelist, suffix):
         "Celegans_Pairing_Beyond_Seed":         "celegans_dataset2",
         "Mouse_Unambiguous_Identification":     "mouse_dataset1",
         "Mouse_Darnell_miRNA_target" :          "mouse_dataset2",
-        "Cow_Global_Mapping_Cattle":            "cattle-dataest1",
+        "Cow_Global_Mapping_Cattle":            "cattle_dataset1",
 
         "Mapping_the_Human_miRNA_Human":        "human_dataset1",
         "Unambiguous_Identification_Human":     "human_dataset2",
@@ -25,7 +25,7 @@ def files_rename (filelist, suffix):
         "Pairing_Beyond_Seed_Celegans":         "celegans_dataset2",
         "Unambiguous_Identification_Mouse":     "mouse_dataset1",
         "Darnell_miRNA_target_chimeras_Mouse":  "mouse_dataset2",
-        "Global_Mapping_Cattle_Cow":            "cattle-dataest1"
+        "Global_Mapping_Cattle_Cow":            "cattle_dataset1"
         }
     for f in filelist:
         print (f)
@@ -37,73 +37,40 @@ def files_rename (filelist, suffix):
 
 
 def dataset_information ():
-    s = pd.DataFrame()
-    index = 0
-
-
-    paper_dic ={"Global mapping of miRNA-target" : "\cite{scheel2017global}",
-                "Unambiguous Identification of miRNA:" : "\cite{grosswendt2014unambiguous}",
-                "Pairing beyond the Seed Supports" : "\cite{broughton2016pairing}",
-                "Mapping the Human miRNA" : "\cite{Helwak2014}",
-                "miRNA–target chimeras reveal" : "\cite{darnell_moore2015mirna}"
-
-                }
-
-    csv = list(data_prepare_csv_dir.glob('*duplex*.csv'))
-    # exclude = ["duplex"]
-    # csv_l = []
-    # for p in csv:
-    #     flag = True
-    #     for e in exclude:
-    #         if p.match(f"*{e}*"):
-    #             flag = False
-    #     if flag:
-    #         csv_l.append(p)
-    #
-
     min_num_of_pairs=11
+    s = pd.DataFrame()
 
-    for f in data_prepare_log_dir.glob('*.json'):
-        #print (f)
+    for index, f in enumerate(data_prepare_log_dir.glob('*.json')):
+        dataset = f.stem
         json_data = f.open().read()
         data = json.loads(json_data)
 
-        org = data["Organism"]
-        paper_name = data["paper"]
-        print (paper_name)
-        paper = "None"
-        for k,v in paper_dic.items():
-            if paper_name.startswith(k) :
-                paper = v
+
         pipe_in = data ["Pipeline input samples count"]
         valid_utr3 = data ["Pipeline valid blast results"]
         valid_mirna = data ["Pipeline valid miRNA_no_***"]
-        csv_c = [c for c in csv if c.match(f"*{str(f.stem)[:10]}*")]
-        csv_c = [c for c in csv_c if c.match(f"*{org}*")]
 
-        print (csv_c)
-
-
-        s.loc ["Organism", index] = org
-        s.loc ["paper", index] = paper
+        s.loc ["Dataset", index] = dataset
         s.loc ["Samples", index] = pipe_in
-        s.loc ["valid_utr3", index] = valid_utr3
-        s.loc ["valid_mirna", index] = valid_mirna
-        if len(csv_c) == 1:
-            dp_file = csv_c[0]
-            df = pd.read_csv(dp_file)
-            valid_duplex = sum(df["num_of_pairs"] >= min_num_of_pairs)
-            valid_seeds = sum(df["valid_seed"])
+        s.loc ["Valid_utr3", index] = min (valid_utr3, valid_mirna)
 
-            s.loc ["Valid duplex", index] = valid_duplex
-            s.loc ["Valid seeds", index] = valid_seeds
+        dp_file = data_prepare_csv_dir / f"{dataset}.csv"
+        df = pd.read_csv(dp_file)
+        valid_duplex_df  = df[df["num_of_pairs"] >= min_num_of_pairs]
+        valid_duplex = valid_duplex_df.shape[0]
+        valid_seeds = sum(valid_duplex_df["valid_seed"])
+
+        s.loc ["Valid duplex", index] = valid_duplex
+        s.loc ["Valid seeds", index] = valid_seeds
+        s.loc ["Final size", index] = valid_seeds*2
+
+    s.sort_values(by='Dataset', axis=1, inplace=True)
+    print (s)
 
 
+    lat = s.to_latex(header=False, index=True)
+    lat = lat.replace("\\_dataset", "")
 
-
-
-        index+=1
-    lat = s.to_latex()
     lat = lat.replace("\\textbackslash cite", "\\cite")
     lat = lat.replace("\\{", "{")
     lat = lat.replace("\\}", "}")
@@ -118,7 +85,7 @@ def dataset_information ():
     \\end{tabular}"
     lat = lat.replace("\end{tabular}",caption)
 
-    print (lat)
+    return (lat)
 
 # ##########################################3333
 # # Train-test split
@@ -177,7 +144,8 @@ def dataset_information ():
 def main():
     files_rename(data_prepare_csv_dir.glob('*duplex*.csv'), "csv")
     files_rename(data_prepare_log_dir.glob("*json"), "json")
-
+    lat = dataset_information()
+    print(lat)
 
 
 

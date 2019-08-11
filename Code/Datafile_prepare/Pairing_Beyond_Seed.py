@@ -9,6 +9,8 @@ from functools import lru_cache
 import pandas as pd
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 import MirBaseUtils.mirBaseUtils as MBU
+import sys, ast
+
 
 class Pairing_Beyond_Seed(object):
 ################################################################################
@@ -106,8 +108,18 @@ class Pairing_Beyond_Seed(object):
 
 
 
-def main ():
-    debug=False
+
+def main():
+    try:
+        debug=ast.literal_eval(sys.argv[1])
+    except IndexError:
+        debug=True
+
+    if (debug):
+        print ("***************************************\n"
+               "\t\t\t DEBUG \n"
+               "***************************************\n")
+
     interaction_file = str(Path("Papers/1-s2.0-S1097276516305214-mmc3.xlsx"))
     log_dir = "Datafiles_Prepare/Logs/"
     tmp_dir = utils.make_tmp_dir("Datafiles_Prepare/tmp_dir", parents=True)
@@ -129,7 +141,7 @@ def main ():
                                  debug=debug)
         ce.run()
 
-        p = Pipeline(paper_name="Pairing_beyond_the_Seed",
+        p = Pipeline(paper_name="Pairing_Beyond_Seed",
                      organism=organism,
                      in_df=ce.prepare_for_pipeline(),
                      tmp_dir=tmp_dir)

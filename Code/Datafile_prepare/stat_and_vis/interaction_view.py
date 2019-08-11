@@ -107,7 +107,7 @@ def main():
 
 
     f =  Path("Datafiles_Prepare/CSV")
-    duplex_files = list (f.glob("*duplex*"))
+    duplex_files = list (f.glob("*dataset*"))
     for a in duplex_files:
         print (a)
         plot_file (fin=a, min_num_of_pairs=11, suff=suff)
@@ -119,11 +119,9 @@ def main():
     duplex_files = list(f.glob("*.pdf"))
     for a in duplex_files:
         print ("\\begin{figure}[h!]")
-        print(f"\t\includegraphics[width = 0.6\\textwidth]{{data_prepare/{a.stem}.{suff}}}")
-        org = a.stem.split("_")[0]
-        source = "".join(a.stem.split("_")[1:4])
-        print (f"\t\\caption {{{org} miRNA interaction view.\\\\"
-               f"Sorce: {source}\\\\"
+        print(f"\t\includegraphics[width = 0.4\\textwidth]{{data_prepare/{a.stem}.{suff}}}")
+        dataset = a.stem
+        print (f"\t\\caption {{{dataset} miRNA interaction view.\\\\"
                f"A: All interactions sorted according the duplex strength\\\\"
                f"B: Interaction with at least 11 pairs\\\\"
                f"C: Arranging the interaction in 5 clusters\\\\"

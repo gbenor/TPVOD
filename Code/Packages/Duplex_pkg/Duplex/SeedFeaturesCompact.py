@@ -1,6 +1,7 @@
 from collections import Counter
 from Duplex.InteractionRichPresentation import  *
 from Duplex.SeedException import SeedException
+from functools import reduce
 
 import pandas as pd
 import pprint

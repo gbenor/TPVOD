@@ -15,6 +15,7 @@ import MirBaseUtils.mirBaseUtils as MBU
 import sortedcontainers as SC
 import jellyfish
 from Duplex import rnaHybrid
+import sys, ast
 
 
 class Darnell_miRNA_target_chimeras(object):
@@ -87,63 +88,20 @@ class Darnell_miRNA_target_chimeras(object):
             #print (str(target.seq))
         self.inter_df = inter_df.copy()
 
-    def calc_levenshtein_distance (self, mirna, mrna, mirna_pattern, mrna_pattern):
 
-        tar, mir = rnaHybrid.rnaHybrid(mrna=mrna, mirna=mirna)
-
-        # mir_dist = (
-        #     jellyfish.levenshtein_distance(mir.decode('unicode-escape'), mirna_pattern))
-        # mrna_dist = (
-        #     jellyfish.levenshtein_distance(tar.decode('unicode-escape'), mrna_pattern.decode('unicode-escape')))
-
-        mir_dist = (
-            jellyfish.levenshtein_distance(mir, mirna_pattern))
-        mrna_dist = (
-            jellyfish.levenshtein_distance(tar, mrna_pattern))
-
-        return min(mir_dist, mrna_dist)
-
-    def add_mirna(self, MAX_DISTANCE=4):
+    def add_mirna(self):
         mirna_prefix = None
         if self.organism == "mouse":
             mirna_prefix = "mmu"
         elif self.organism == "human":
             mirna_prefix = "hsa"
-        mirbasedic = MBU.read_mirbase_file(mirna_prefix)
 
-        stat_num_of_direct_mirna = 0
-        stat_num_of_heuristic_mirna = 0
 
-        for index, row in self.inter_df.iterrows():
-            self.inter_df.loc[index, 'miRNA_seq'] = "No mrna match!!!"
-            mirna_id = row["miRNA"]
-            mrna = row['target']
-            darnell_mir_p = row["miR.map"]
-            darnell_mrna_p = row["target.map"]
+        df = MBU.insert_mirna(self.inter_df, "miRNA", organism_prefix=mirna_prefix)
+        no_mirna_df = df[df["miRNA_seq"]=="No mrna match!!!"]
+        assert no_mirna_df.shape[0]<100, f"Too many miRNAs without match\n{no_mirna_df}"
 
-            mirna_list = MBU.find_mirnas_by_prefix(mirbasedic, mirna_id)
-            if len(mirna_list) == 1:
-                self.inter_df.loc[index, 'miRNA_seq'] = mirna_list[0][1]
-                stat_num_of_direct_mirna += 1
-
-            elif len(mirna_list) > 1:
-                result_dict = SC.SortedDict()
-                for id, seq in mirna_list:
-                    dist = self.calc_levenshtein_distance(seq, mrna, darnell_mir_p, darnell_mrna_p)
-                    result_dict[(id, seq)] = dist
-
-                v = list(result_dict.values())
-                k = list(result_dict.keys())
-                min_value = min(v)
-                if min_value <= MAX_DISTANCE:
-                    m_seq = k[v.index(min_value)][1]
-                    print(m_seq)
-                    self.inter_df.loc[index, 'miRNA_seq'] = m_seq
-                    stat_num_of_heuristic_mirna += 1
-
-        JsonLog.add_to_json("num_of_direct_mirna", stat_num_of_direct_mirna)
-        JsonLog.add_to_json("num_of_heuristic_mirna", stat_num_of_heuristic_mirna)
-
+        self.inter_df = df
 
 
 
@@ -161,8 +119,8 @@ class Darnell_miRNA_target_chimeras(object):
         #####################################################
         # Select only 3'utr
         #####################################################
-        self.select_3utr()
-        JsonLog.add_to_json("valid_utr3_before", self.inter_df.shape[0])
+        # self.select_3utr()
+        # JsonLog.add_to_json("valid_utr3_before", self.inter_df.shape[0])
 
 
         #####################################################
@@ -187,7 +145,19 @@ class Darnell_miRNA_target_chimeras(object):
 
 
 def main():
-    debug=False
+    try:
+        debug=ast.literal_eval(sys.argv[1])
+    except IndexError:
+        debug=True
+
+    if (debug):
+        print ("***************************************\n"
+               "\t\t\t DEBUG \n"
+               "***************************************\n")
+
+
+
+
     mouse_config = {"organism" : "Mouse",
                     "interaction_file" : "Papers/ncomms9864-s2.xlsx"}
     human_config = {"organism": "Human",

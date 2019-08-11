@@ -1,5 +1,5 @@
 from collections import Counter
-from InteractionRichPresentation import *
+from Duplex.InteractionRichPresentation import *
 import pandas as pd
 
 class SeedFeatures(object):

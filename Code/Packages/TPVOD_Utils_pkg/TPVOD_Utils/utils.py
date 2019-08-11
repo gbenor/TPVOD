@@ -21,3 +21,8 @@ def filename_suffix_append(f, s):
 def filename_date_append (f):
     return str(filename_suffix_append (f, "_{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"))))
 
+
+def drop_unnamed_col(df):
+    for c in df.columns:
+        if c.find ("Unnamed")!=-1:
+            df.drop([c], axis=1, inplace=True)

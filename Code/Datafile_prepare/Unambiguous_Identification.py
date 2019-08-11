@@ -2,6 +2,7 @@ from Pipeline import *
 from pathlib import Path
 from TPVOD_Utils import JsonLog, utils
 import pandas as pd
+import sys, ast
 
 
 def read_paper_data(f, organism, debug=False):
@@ -30,8 +31,18 @@ def df_prepare (in_df):
     return in_df
 
 
-def main ():
-    debug = False
+
+def main():
+    try:
+        debug=ast.literal_eval(sys.argv[1])
+    except IndexError:
+        debug=True
+
+    if (debug):
+        print ("***************************************\n"
+               "\t\t\t DEBUG \n"
+               "***************************************\n")
+
     interaction_file = str(Path("Papers/1-s2.0-S1097276514003566-mmc3.xls"))
     log_dir = "Datafiles_Prepare/Logs/"
     tmp_dir = utils.make_tmp_dir("Datafiles_Prepare/tmp_dir", parents=True)

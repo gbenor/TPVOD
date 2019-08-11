@@ -15,6 +15,8 @@ import pandas as pd
 import numpy as np
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 import MirBaseUtils.mirBaseUtils as MBU
+import sys, ast
+
 
 COW_MIRNA_LEN = 22
 
@@ -100,8 +102,18 @@ class Global_Mapping_Cattle(object):
 
 
 
-def main ():
-    debug = False
+
+def main():
+    try:
+        debug=ast.literal_eval(sys.argv[1])
+    except IndexError:
+        debug=True
+
+    if (debug):
+        print ("***************************************\n"
+               "\t\t\t DEBUG \n"
+               "***************************************\n")
+
     interaction_file = str(Path("Papers/41598_2017_7880_MOESM4_ESM.csv"))
     log_dir = "Datafiles_Prepare/Logs/"
     tmp_dir = utils.make_tmp_dir("Datafiles_Prepare/tmp_dir", parents=True)
