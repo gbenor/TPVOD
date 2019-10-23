@@ -9,6 +9,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from xgboost import XGBClassifier
+from sklearn.model_selection import PredefinedSplit
+import ast
+
+import pandas as pd
+import numpy as np
+from dataset import Dataset
+
+
 
 def run_test (dataset, train_cfg, best_params, method, train_test_dir = Path("Features/CSV/train_test0")):
     f_test = train_test_dir / f"{dataset}_test.csv"
@@ -94,58 +102,142 @@ def self_results_summary():
 
 
 def different_results_summary():
-    results_dir = Path("Results") / "different"
-    train_test_dir = Path("Features/CSV/train_test")
+    results_dirs = [x for x in Path("Results").iterdir() if x.is_dir() and x.match("*different*")]
+    train_test_dir_parent = Path("Features/CSV/")
 
     res_table = pd.DataFrame()
 
+    for results_dir in results_dirs:
+        print (results_dir)
+        id = str(results_dir).split("different")[1]
+        train_test_dir = train_test_dir_parent / f"train_test{id}"
+
+        for i, f_train in enumerate(results_dir.glob("*results*.csv")):
+            print (f_train)
+            s = f_train.stem
+            train_dataset = s.split("_different")[0]
+            train_dataset_type = "fixed" if f_train.match("*fixed*") else "all"
+
+            df = pd.read_csv(f_train)
+            best = df[df["rank_test_score"]==1]
+            params = (best.head(1)["params"]).item()
+            params =  ast.literal_eval(params)
 
 
-    for i, f_train in enumerate(results_dir.glob("*results*.csv")):
-        print (f_train)
-        s = f_train.stem
-        train_dataset = s.split("_different")[0]
+            f_train_data = train_test_dir / f"{train_dataset}_different_train_{train_dataset_type}.csv"
+            train = pd.read_csv(f_train_data)
+            X_train = train.drop(["Label"], axis=1)
+            y_train = train.Label.ravel()
 
-        df = pd.read_csv(f_train)
+            print (f"Train file={f_train_data}")
+            model = XGBClassifier(**params)
+            print(model)
+            model.fit(X_train, y_train)
+
+            for f_test in train_test_dir.glob("*test*"):
+                test_dataset = str(f_test.stem).split("_test")[0]
+                if train_dataset==test_dataset:
+                    continue
+                print (f"Test file={f_test}")
+                test = pd.read_csv(f_test)
+                X_test = test.drop(["Label"], axis=1)
+                y_test = test.Label.ravel()
+                score =  model.score(X_test, y_test)
+
+                res_table.loc[f"{train_dataset_type}_{train_dataset}", test_dataset] = round(score, 3)
+            print(res_table)
+        #
+        #     # if i > 7:
+        #     #     break
+        res_table.sort_index(axis=0,  inplace=True)
+        res_table.sort_index(axis=1,  inplace=True)
+
+        print(res_table)
+        print(res_table.to_latex())
+
+        res_table.to_csv(results_dir/"summary.csv")
+
+
+def different_mean_std():
+    results_dirs = [x for x in Path("Results").iterdir() if x.is_dir() and x.match("*different*")]
+    results_files = [x/"summary.csv" for x in results_dirs]
+    summary_df = [pd.read_csv(f) for f in results_files]
+    l = [x.iloc[1,1] for x in summary_df]
+
+
+    summary_concat = pd.concat(summary_df)
+    by_row_index = summary_concat.groupby(summary_concat.index)
+    summary_means = by_row_index.mean()
+    print (summary_means)
+    summary_std = by_row_index.std(ddof=0)
+    print (summary_std)
+    result = summary_means.copy()
+    for i in range (result.shape[0]):
+        for j in range (result.shape[1]):
+            m = round(summary_means.iloc[i,j], 3)
+            s = round(summary_std.iloc[i,j], 3)
+            result.iloc[i,j] = f"{m} ({s})"
+
+    print(result)
+    print (result.to_latex())
+
+    return
+    train_test_dir_parent = Path("Features/CSV/")
+
+    res_table = pd.DataFrame()
+
+    for results_dir in results_dirs:
+        print(results_dir)
+
+
+def self_size_summary():
+    results_dir = Path("Results") / "train_test_size"
+    train_test_dir = Path("Features/CSV/") / "train_test_size"
+
+    res_table = pd.DataFrame(columns=["size", "acc"])
+
+    for train_file in train_test_dir.glob("*train_train_*.csv"):
+        ds = Dataset.create_class_from_size_file(train_file)
+        size_str = str(train_file.stem).split("train_train_")[1]
+        res_file = next(results_dir.glob(f"*{size_str}*"))
+
+        df = pd.read_csv(res_file)
         best = df[df["rank_test_score"]==1]
         params = (best.head(1)["params"]).item()
         params =  ast.literal_eval(params)
 
 
-        f_train_data = train_test_dir / f"{train_dataset}_different_train_fixed.csv"
-        train = pd.read_csv(f_train_data)
-        X_train = train.drop(["Label"], axis=1)
-        y_train = train.Label.ravel()
+
+        # xgboost with eval
+        ###################################
 
 
+        fit_params = {"eval_set": [(ds.X_val, ds.y_val)],
+                      "early_stopping_rounds": 50}
         model = XGBClassifier(**params)
-        print(model)
-        model.fit(X_train, y_train)
+        model.fit(ds.X, ds.y, **fit_params)
+        test = pd.read_csv(train_test_dir/ "cattle_dataset1_test.csv")
 
-        for f_test in train_test_dir.glob("*test*"):
-            test_dataset = str(f_test.stem).split("_test")[0]
-            if train_dataset==test_dataset:
-                continue
-            test = pd.read_csv(f_test)
-            X_test = test.drop(["Label"], axis=1)
-            y_test = test.Label.ravel()
-            score =  model.score(X_test, y_test)
+        acc =  model.score(ds.X_test, ds.y_test)
+        print ("accc")
+        print (acc)
+        new_row = pd.DataFrame(data=[[ds.X.shape[0], round(acc, 3)]],
+                                                  columns=["size", "acc"])
+        res_table = res_table.append(new_row, ignore_index=True)
 
-            res_table.loc[train_dataset, test_dataset] = round(score, 3)
-            print(res_table)
-    #
-    #     # if i > 7:
-    #     #     break
-    res_table.sort_index(axis=0,  inplace=True)
-    res_table.sort_index(axis=1,  inplace=True)
+        print(res_table)
 
+        # if i > 7:
+        #     break
     print(res_table)
     print(res_table.to_latex())
 
     res_table.to_csv(results_dir/"summary.csv")
 
 
-def XGBS_explore_params():
+
+
+def XGBS_explore_params_self():
     results_dir = Path("Results") / "self"
 
 
@@ -167,10 +259,36 @@ def XGBS_explore_params():
         print (pd.unique(all_params[c]))
 
 
+def XGBS_explore_params_diff():
+    results_dirs = [x for x in Path("Results").iterdir() if x.is_dir() and x.match("*different*")]
+
+    all = pd.DataFrame()
+    for i, f_train in enumerate(results_dirs[1].glob("*results*.csv")):
+        print(f_train)
+        for results_dir in results_dirs:
+            s = f_train.stem
+            f = next(results_dir.glob(f"*{s}*"))
+            print(f)
+
+            df = pd.read_csv(f)
+            best = df[df["rank_test_score"] == 1]
+            # print(best)
+            all = all.append(best)
+            all = all.append(pd.Series(), ignore_index=True)
+
+        print (all)
+        all.to_csv("all.csv")
+        exit(3)
+
+
+
 def main():
-    self_results_summary()
+    # self_results_summary()
     # XGBS_explore_params()
     # different_results_summary()
+    # different_mean_std()
+    self_size_summary()
+    # XGBS_explore_params_diff()
 
 
 
