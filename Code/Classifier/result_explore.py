@@ -1,7 +1,12 @@
+from multiprocessing import Process
 
 import pandas as pd
 from pathlib import Path
 from collections import ChainMap
+
+from sklearn.metrics import accuracy_score
+
+from ClassifierWithGridSearch import ClassifierWithGridSearch
 from TPVOD_Utils import utils
 import json
 import ast
@@ -14,8 +19,10 @@ import ast
 
 import pandas as pd
 import numpy as np
-from dataset import Dataset
 
+from classifier_utils import read_feature_csv
+from dataset import Dataset
+from pandas import DataFrame
 
 
 def run_test (dataset, train_cfg, best_params, method, train_test_dir = Path("Features/CSV/train_test0")):
@@ -51,49 +58,42 @@ def run_test (dataset, train_cfg, best_params, method, train_test_dir = Path("Fe
     return model.score(X_test, y_test)
 
 
-def self_results_summary():
-    results_dir = Path("Results") / "self"
-    train_test_dir = Path("Features/CSV/train_test0")
+def self_results_summary(id: int):
+    results_dir = Path("Results") / f"self{id}"
+    train_test_dir = Path(f"Features/CSV/train_test{id}")
 
-    res_table = pd.DataFrame(index=pd.MultiIndex.from_tuples([], names=['Dataset', 'Train']))
+    res_table: DataFrame = pd.DataFrame()
 
-    for f in train_test_dir.glob("*self_train_all*"):
-        if f.stat().st_size < 99999:
-            continue
-        dataset = str(f.stem).split("_self")[0]
-        self_train_fixed        = f"{dataset}_self_train_fixed.csv"
-        self_train_all          = f"{dataset}_self_train_all.csv"
-        res_table.loc[(dataset, "fixed"), "train size"] = pd.read_csv(train_test_dir/self_train_fixed).shape[0]
-        res_table.loc[(dataset, "all"), "train size"] = pd.read_csv(train_test_dir/self_train_all).shape[0]
+    for f_test in train_test_dir.glob("*test*"):
+        print (f"test: {f_test}")
+        clf = ClassifierWithGridSearch(f_test, results_dir)
+        for i, f_result in enumerate(results_dir.glob(f"*{clf.dataset_name}*.csv")):
+            #dataset_name
+            print (f"res file: {f_result}")
+            f_stem: str = f_result.stem
+            dataset = f_stem[:f_stem.find("dataset")+8]
+            assert dataset==clf.dataset_name, f"dataset not equal {dataset}   {clf.dataset_name}"
+            method = f_stem.split("_")[2]
 
-    print(res_table)
+            print (dataset)
+            print(method)
+            df = pd.read_csv(f_result)
+            best = df[df["rank_test_score"]==1]
+            params = (best.head(1)["params"]).item()
+            params =  ast.literal_eval(params)
+            best_clf = clf.fit_best_clf(method, params)
 
 
-    for i, f in enumerate(results_dir.glob("*results*.csv")):
-        print (f)
-        s = f.stem
-        dataset = s.split("_self")[0]
-        method = s.split("_results_")[1]
-        train = s.split("_self_")[1]
-        train = train.split("_results_")[0]
-        # print (dataset)
-        # print(method)
-        # print(train)
-        df = pd.read_csv(f)
-        best = df[df["rank_test_score"]==1]
-        params = (best.head(1)["params"]).item()
-        params =  ast.literal_eval(params)
-        # print (params)
-        # index = pd.MultiIndex.from_tuples([(dataset, train)], names=['Dataset', 'Train'])
+            X_test = read_feature_csv(f_test)
+            y_test = pd.read_csv(f_test).Label.ravel()
+            test_score = accuracy_score(y_test, best_clf.predict(X_test))
 
-        # d = f"{dataset}_{train}"
-        res_table.loc[(dataset, train), method] = round(run_test(dataset, train, params, method), 3)
+            res_table.loc[dataset, method] = round(test_score, 3)
 
-        print(res_table)
+            print(res_table)
+            res_table.to_csv(results_dir / "summary.csv")
 
-        # if i > 7:
-        #     break
-    res_table.sort_values(by='Dataset', inplace=True)
+    res_table.sort_index(inplace=True)
     print(res_table)
     print(res_table.to_latex())
 
@@ -158,12 +158,13 @@ def different_results_summary():
         res_table.to_csv(results_dir/"summary.csv")
 
 
-def different_mean_std():
-    results_dirs = [x for x in Path("Results").iterdir() if x.is_dir() and x.match("*different*")]
+def mean_std(dir: Path, match: str):
+    results_dirs = [x for x in dir.iterdir() if x.is_dir() and x.match(f"*{match}*")]
+    print (results_dirs)
     results_files = [x/"summary.csv" for x in results_dirs]
-    summary_df = [pd.read_csv(f) for f in results_files]
+    print((results_files))
+    summary_df = [pd.read_csv(f, index_col=0) for f in results_files]
     l = [x.iloc[1,1] for x in summary_df]
-
 
     summary_concat = pd.concat(summary_df)
     by_row_index = summary_concat.groupby(summary_concat.index)
@@ -177,8 +178,10 @@ def different_mean_std():
             m = round(summary_means.iloc[i,j], 3)
             s = round(summary_std.iloc[i,j], 3)
             result.iloc[i,j] = f"{m} ({s})"
-
+    result.index = summary_df[0].index
     print(result)
+    out_file = dir / f"{match}_mean_std.csv"
+    result.to_csv(out_file)
     print (result.to_latex())
 
     return
@@ -283,11 +286,23 @@ def XGBS_explore_params_diff():
 
 
 def main():
+    mean_std(Path("Results"), "self")
+
+    # process_list = []
+    # for i in range(10):
+    #     p = Process(target=self_results_summary, args=(i, ))
+    #     p.start()
+    #
+    #     process_list.append(p)
+    # for p in process_list:
+    #     p.join()
+
+    # self_results_summary(3)
     # self_results_summary()
     # XGBS_explore_params()
     # different_results_summary()
     # different_mean_std()
-    self_size_summary()
+    # self_size_summary()
     # XGBS_explore_params_diff()
 
 
