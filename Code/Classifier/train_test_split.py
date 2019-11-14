@@ -109,6 +109,7 @@ def create_train_test (input_dir, output_dir, minimun_pos_samples, seed):
 
 
 def stratify_train_test_split (df, test_size , random_state ):
+    #Change: all the unique miRNA were put in the test set
     uniques_mirna = df[df.groupby("microRNA_name").microRNA_name.transform(len)==1]
     non_uniques_mirna = df[df.groupby("microRNA_name").microRNA_name.transform(len)>1]
 
@@ -117,21 +118,8 @@ def stratify_train_test_split (df, test_size , random_state ):
                                                            random_state=random_state,
                                                            stratify= non_uniques_mirna["microRNA_name"])
 
-    #dealing with the uniques_mirna
-    try:
-        uniques_train, uniques_test = train_test_split(uniques_mirna, test_size =test_size ,
-                                                               random_state=random_state,
-                                                               stratify=None)
-    except ValueError:
-        print ("handle exception")
-        assert uniques_mirna.shape[0]==1, "This exception handle the case of only one sample in the uniques_mirna"
-        #since it is only one sample, it doesn't matter, where to put it.
-        uniques_train = uniques_mirna
-        uniques_test = pd.DataFrame(columns=uniques_mirna.columns)
-
-
-    train = pd.concat([non_uniques_train, uniques_train])
-    test = pd.concat([non_uniques_test, uniques_test])
+    train = pd.concat([non_uniques_train])
+    test = pd.concat([non_uniques_test, uniques_mirna])
     return train, test
 
 
