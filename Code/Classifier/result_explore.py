@@ -1,10 +1,12 @@
+import pickle
 from multiprocessing import Process
+from typing import List
 
 import pandas as pd
 from pathlib import Path
 from collections import ChainMap
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 
 from ClassifierWithGridSearch import ClassifierWithGridSearch
 from TPVOD_Utils import utils
@@ -23,6 +25,38 @@ import numpy as np
 from classifier_utils import read_feature_csv
 from dataset import Dataset
 from pandas import DataFrame
+
+def measurement (y_true, y_pred):
+    cm = confusion_matrix(y_true, y_pred)
+    TP = cm[0][0]
+    FP = cm[0][1]
+    FN = cm[1][0]
+    TN = cm[1][1]
+
+    d =  {
+    # Sensitivity, hit rate, recall, or true positive rate
+    "TPR" : TP / (TP + FN),
+    # Specificity or true negative rate
+    "TNR" : TN / (TN + FP),
+    # Precision or positive predictive value
+    "PPV" : TP / (TP + FP),
+    # Negative predictive value
+    "NPV" : TN / (TN + FN),
+    # Fall out or false positive rate
+    "FPR" : FP / (FP + TN),
+    # False negative rate
+    "FNR" : FN / (TP + FN),
+    # False discovery rate
+    "FDR" : FP / (TP + FP),
+    # Overall accuracy
+    "ACC" : (TP + TN) / (TP + FP + FN + TN),
+        # "ROC_AUC" : roc_auc_score(y_true, y_score
+    }
+    return {k: round(v,3) for k, v in d.items()}
+
+
+
+
 
 
 def run_test (dataset, train_cfg, best_params, method, train_test_dir = Path("Features/CSV/train_test0")):
@@ -92,6 +126,41 @@ def self_results_summary(id: int):
 
             print(res_table)
             res_table.to_csv(results_dir / "summary.csv")
+
+    res_table.sort_index(inplace=True)
+    print(res_table)
+    print(res_table.to_latex())
+
+    res_table.to_csv(results_dir/"summary.csv")
+
+def self_results_summary_model(id: int):
+    results_dir = Path("Results") / f"self{id}"
+    train_test_dir = Path(f"Features/CSV/train_test{id}")
+
+    res_table: DataFrame = pd.DataFrame()
+
+    for f_model in results_dir.glob("*.model"):
+        print (f"model: {f_model}")
+
+        with f_model.open("rb") as f:
+            best_clf = pickle.load(f)
+
+        dataset =  "human_dataset1"
+        method = "xgbs"
+        f_test = train_test_dir / "human_dataset1_test.csv"
+
+        X_test, y_test = read_feature_csv(f_test)
+   #     y_test = pd.read_csv(f_test).Label.ravel()
+        test_score = accuracy_score(y_test, best_clf.predict(X_test))
+
+        res_table.loc[dataset, method] = round(test_score, 3)
+
+        print(res_table)
+        res_table.to_csv(results_dir / "summary.csv")
+        feature_importance = xgbs_feature_importance(best_clf, X_test)
+        feature_importance.to_csv(results_dir/ "feature_importance.csv")
+        print ("save feature importance file")
+        return measurement(y_test, best_clf.predict(X_test))
 
     res_table.sort_index(inplace=True)
     print(res_table)
@@ -283,10 +352,54 @@ def XGBS_explore_params_diff():
         all.to_csv("all.csv")
         exit(3)
 
+def xgbs_feature_importance(clf: XGBClassifier, X_train: DataFrame):
+    def series2bin(d: pd.DataFrame, bins: list):
+        for l in bins:
+            d[f"bins{l}"] = d["rank"].apply(lambda x: int(x/l))
+        return d
 
+    feature_importances = pd.DataFrame(clf.feature_importances_, index=X_train.columns, columns=['importance'])
+    feature_importances.sort_values('importance', ascending=False, inplace=True)
+    feature_importances["rank"] = range(feature_importances.shape[0])
+    feature_importances = series2bin(feature_importances, [10, 20, 50])
+    return feature_importances
+#
+# def sum_feature_importance():
+#     In[27]: d1 = pd.read_csv("Results/self1/feature_importance.csv", index_col=0)
+#
+#     result = pd.concat([d0, d1], axis=1, join='inner')
+#     In[27]: a["std"] = result["rank"].std(axis=1)
+# In [27]: a["rank"] = result["rank"].mean(axis=1)
+# In [27]: a.sort_values(by="rank").head(20)
+#
+
+
+def feature_importance_table(root_dir: Path):
+    result_dirs = [d for d in root_dir.glob("*self*") if d.is_dir()]
+    importance_files = [f for d in result_dirs for f in d.glob("*imp*")]
+    importance_df = [pd.read_csv(f, index_col=0) for f in importance_files]
+    importance_df = [df.sort_index() for df in importance_df]
+
+    join_df = pd.concat(importance_df, axis=1)
+    r = join_df["rank"]
+    res = pd.DataFrame(columns=["mean", "std"])
+    res["mean"] = r.mean(axis=1)
+    res["std"] = r.std(axis=1)
+    res.sort_values(by="mean", inplace=True)
+
+    print (res.head(20))
 
 def main():
-    mean_std(Path("Results"), "self")
+    # d = Path("Results")
+    # feature_importance_table(d)
+    r = []
+    for i in range (20):
+        r.append(self_results_summary_model(i))
+    for t in r:
+        print (t)
+
+
+    # mean_std(Path("Results"), "self")
 
     # process_list = []
     # for i in range(10):
