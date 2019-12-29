@@ -23,9 +23,9 @@ class ClassifierWithGridSearch (object):
         self.dataset_file = dataset_file
         self.dataset_name = self.extract_dataset_name()
         print (f"Handling dataset : {self.dataset_name}")
-        self.load_dataset(use_test_as_val)
+        self.load_dataset()
         self.result_dir = Path(result_dir)
-        self.result_dir.mkdir(exist_ok=True)
+        self.result_dir.mkdir(exist_ok=True, parents=True)
         self.create_clf_dict()
 
     def extract_dataset_name (self):
@@ -41,41 +41,50 @@ class ClassifierWithGridSearch (object):
             "xgbs": XGBClassifier()
         }
 
+    # def load_dataset(self, use_test_as_val: bool = False):
+    #     directory = self.dataset_file.parent
+    #     suffixes = ["train", "test"] if use_test_as_val else ["train_train", "train_val"]
+    #     train_key = suffixes[0]
+    #     val_key = suffixes[1]
+    #
+    #     keys = [f"{s}" for s in suffixes]
+    #     df_dict = {key: pd.read_csv(directory / f"{self.dataset_name}_{key}.csv") for key in keys}
+    #
+    #     data = pd.concat([df_dict[train_key], df_dict[val_key]], axis=0)
+    #     data.reset_index(inplace=True, drop=True)
+    #     val_idx = np.concatenate(
+    #         ((-1) * np.ones(df_dict[train_key].shape[0]), np.zeros(df_dict[val_key].shape[0])))
+    #     ps = PredefinedSplit(val_idx)
+    #     X = data.drop(columns=["Label", "microRNA_name"])
+    #     expected_num_of_features = 580
+    #     assert len(X.columns) == expected_num_of_features, f"""Read error. Wrong number of features.
+    #            Read: {len(X.columns)}
+    #            Expected: {expected_num_of_features}"""
+    #     y = data.Label.ravel()
+    #     train_index, val_index = next(ps.split())
+    #     X_val = X.iloc[val_index]
+    #     y_val = y[val_index]
+    #     self.X = X
+    #     self.y = y
+    #     self.X_val = X_val
+    #     self.y_val = y_val
+    #     self.ps = ps
 
-
-    def load_dataset (self, use_test_as_val: bool=False):
+    def load_dataset(self):
         directory = self.dataset_file.parent
-        suffixes = ["train", "test"] if use_test_as_val else ["train_train", "train_val"]
-        train_key = suffixes[0]
-        val_key = suffixes[1]
+        X, y = read_feature_csv(directory / f"{self.dataset_name}_train.csv")
 
-        keys = [f"{s}" for s in suffixes]
-        df_dict = {key: pd.read_csv(directory / f"{self.dataset_name}_{key}.csv") for key in keys}
-
-        data = pd.concat([df_dict[train_key], df_dict[val_key]], axis=0)
-        data.reset_index(inplace=True, drop=True)
-        val_idx = np.concatenate(
-            ((-1) * np.ones(df_dict[train_key].shape[0]), np.zeros(df_dict[val_key].shape[0])))
-        ps = PredefinedSplit(val_idx)
-        X = data.drop(columns=["Label", "microRNA_name"])
         expected_num_of_features = 580
         assert len(X.columns) == expected_num_of_features, f"""Read error. Wrong number of features.
             Read: {len(X.columns)}
             Expected: {expected_num_of_features}"""
-        y = data.Label.ravel()
-        train_index, val_index = next(ps.split())
-        X_val = X.iloc[val_index]
-        y_val = y[val_index]
+
         self.X = X
         self.y = y
-        self.X_val = X_val
-        self.y_val = y_val
-        self.ps = ps
+
 
     def train_one_conf (self, clf_name, conf, scoring="accuracy"):
-
         output_file = self.result_dir / f"{self.dataset_name}_{clf_name}.csv"
-
         if output_file.is_file():
             print (f"output file: {output_file} exits. skip.")
             return
@@ -83,16 +92,9 @@ class ClassifierWithGridSearch (object):
         clf = self.clf_dict[clf_name]
         print (clf)
         parameters = conf['parameters']
-        try:
-            fit_params = conf['fit_params']
-        except KeyError:
-            fit_params = {}
-        if clf_name == "xgbs":
-            fit_params = {"eval_set": [(self.X_val, self.y_val)],
-                          "early_stopping_rounds": 50}
 
-        grid_obj = GridSearchCV(clf, parameters, scoring=scoring, cv=self.ps, n_jobs=-1, verbose=3)
-        grid_obj.fit(self.X, self.y, **fit_params)
+        grid_obj = GridSearchCV(clf, parameters, scoring=scoring, cv=4, n_jobs=-1, verbose=3)
+        grid_obj.fit(self.X, self.y)
 
         print('\n Best estimator:')
         print(grid_obj.best_estimator_)
@@ -152,19 +154,33 @@ def cli():
 def self_fit(yaml_file, first_self, last_self):
     csv_dir = Path("Features/CSV")
     process_list = []
-    # for i in range(7):
     for i in range(first_self, last_self):
         train_test_dir = csv_dir / f"train_test{i}"
         results_dir = Path("Results") / f"self{i}"
-        for dataset_file in train_test_dir.glob("*test*"):
-            # clf_grid_search = ClassifierWithGridSearch(dataset_file=dataset_file, result_dir=results_dir)
-            # clf_grid_search.fit(yaml_file)
-            p = Process(target=worker, args=(dataset_file, results_dir, yaml_file))
-            p.start()
+        for dataset_file in train_test_dir.glob("*_test*"):
+            worker(dataset_file, results_dir, yaml_file)
 
-            process_list.append(p)
-        for p in process_list:
-            p.join()
+@click.command()
+@click.argument('yaml_file')
+@click.argument('first_self', type=int)
+@click.argument('last_self', type=int)
+def self_fit_random(yaml_file, first_self, last_self):
+    csv_dir = Path("Features/CSV")
+    process_list = []
+    for i in range(first_self, last_self):
+        train_test_dir = csv_dir / f"random_train_test{i}"
+        results_dir = Path("Results") / f"random_self{i}"
+        for dataset_file in train_test_dir.glob("*_test*"):
+            worker(dataset_file, results_dir, yaml_file)
+
+
+
+        #     p = Process(target=worker, args=(dataset_file, results_dir, yaml_file))
+        # #     p.start()
+        #
+        #     process_list.append(p)
+        # for p in process_list:
+        #     p.join()
 
 @click.command()
 @click.argument('yaml_file')
@@ -182,6 +198,7 @@ def different_fit(yaml_file, first_self, last_self):
 
 cli.add_command(self_fit)
 cli.add_command(different_fit)
+cli.add_command(self_fit_random)
 
 
 
