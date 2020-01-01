@@ -99,15 +99,15 @@ class ClassifierWithGridSearch (object):
         print('\n Best estimator:')
         print(grid_obj.best_estimator_)
         print(grid_obj.best_score_ * 2 - 1)
-        if clf_name=="xgbs":
-            #save xgboost into file
-            xgbs_clf : XGBClassifier = grid_obj.best_estimator_
-            model_file = self.result_dir / f"{self.dataset_name}_xgbs.model"
-            try:
-                with model_file.open("wb") as pfile:
-                    pickle.dump(xgbs_clf, pfile)
-            except Exception:
-                pass
+        #save the best classifier
+        best_clf = grid_obj.best_estimator_
+        model_file = self.result_dir / f"{self.dataset_name}_{clf_name}.model"
+
+        try:
+            with model_file.open("wb") as pfile:
+                pickle.dump(best_clf, pfile)
+        except Exception:
+            pass
 
 
         results = pd.DataFrame(grid_obj.cv_results_)
