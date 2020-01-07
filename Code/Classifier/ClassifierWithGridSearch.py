@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from typing import Dict
 
@@ -10,17 +11,20 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.model_selection import PredefinedSplit
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import RandomizedSearchCV,GridSearchCV
-from multiprocessing import Process
+from multiprocessing import Process, Pool
 import sklearn
 
 from sklearn.svm import SVC
 from xgboost import XGBClassifier
 import pickle
-from classifier_utils import read_feature_csv
+from FeatureReader import HotEncodingReader as feature_reader
+
 
 class ClassifierWithGridSearch (object):
-    def __init__(self, dataset_file, result_dir, use_test_as_val: bool=False):
+    def __init__(self, dataset_file, result_dir, expected_num_of_features=580, features_to_remove=[]):
         self.dataset_file = dataset_file
+        self.expected_num_of_features = expected_num_of_features
+        self.features_to_remove = features_to_remove
         self.dataset_name = self.extract_dataset_name()
         print (f"Handling dataset : {self.dataset_name}")
         self.load_dataset()
@@ -38,7 +42,8 @@ class ClassifierWithGridSearch (object):
             'logit': LogisticRegression(),
             'SGD': SGDClassifier(),
             "KNeighborsClassifier": KNeighborsClassifier(),
-            "xgbs": XGBClassifier()
+            "xgbs": XGBClassifier(),
+            "xgbs_no_encoding" : XGBClassifier(),
         }
 
     # def load_dataset(self, use_test_as_val: bool = False):
@@ -72,12 +77,13 @@ class ClassifierWithGridSearch (object):
 
     def load_dataset(self):
         directory = self.dataset_file.parent
-        X, y = read_feature_csv(directory / f"{self.dataset_name}_train.csv")
+        X, y = read_feature_csv(directory / f"{self.dataset_name}_train.csv",
+                                expected_num_of_features=self.expected_num_of_features,
+                                features_to_remove=self.features_to_remove)
 
-        expected_num_of_features = 580
-        assert len(X.columns) == expected_num_of_features, f"""Read error. Wrong number of features.
+        assert len(X.columns) == self.expected_num_of_features, f"""Read error. Wrong number of features.
             Read: {len(X.columns)}
-            Expected: {expected_num_of_features}"""
+            Expected: {self.expected_num_of_features}"""
 
         self.X = X
         self.y = y
@@ -135,9 +141,10 @@ class ClassifierWithGridSearch (object):
                 self.train_one_conf(clf_name, conf, scoring="accuracy")
 
 
-def worker (dataset_file, results_dir, yaml_file, use_test_as_val: bool = False):
+def worker (dataset_file, results_dir, yaml_file, expected_num_of_features=580, features_to_remove=[]):
     clf_grid_search = ClassifierWithGridSearch(dataset_file=dataset_file, result_dir=results_dir,
-                                               use_test_as_val=use_test_as_val)
+                                               expected_num_of_features=expected_num_of_features,
+                                               features_to_remove=features_to_remove)
     clf_grid_search.fit(yaml_file)
     return
 
@@ -154,11 +161,129 @@ def cli():
 def self_fit(yaml_file, first_self, last_self):
     csv_dir = Path("Features/CSV")
     process_list = []
+    p = Pool(24)
     for i in range(first_self, last_self):
         train_test_dir = csv_dir / f"train_test{i}"
         results_dir = Path("Results") / f"self{i}"
-        for dataset_file in train_test_dir.glob("*_test*"):
-            worker(dataset_file, results_dir, yaml_file)
+
+        partial_worker = partial(worker, results_dir=results_dir, yaml_file=yaml_file)
+        p.map(partial_worker, train_test_dir.glob("*_test*"))
+
+
+        # for dataset_file in train_test_dir.glob("*_test*"):
+        #     worker(dataset_file, results_dir, yaml_file)
+
+@click.command()
+@click.argument('yaml_file')
+@click.argument('first_self', type=int)
+@click.argument('last_self', type=int)
+def self_fit_no_encoding(yaml_file, first_self, last_self):
+    csv_dir = Path("Features/CSV")
+    features_to_remove = ['HotPairingMRNA_he_P1_L1',
+                         'HotPairingMRNA_he_P1_L2',
+                         'HotPairingMRNA_he_P1_L3',
+                         'HotPairingMRNA_he_P1_L4',
+                         'HotPairingMRNA_he_P1_L5',
+                         'HotPairingMRNA_he_P2_L1',
+                         'HotPairingMRNA_he_P2_L2',
+                         'HotPairingMRNA_he_P2_L3',
+                         'HotPairingMRNA_he_P2_L4',
+                         'HotPairingMRNA_he_P2_L5',
+                         'HotPairingMRNA_he_P3_L1',
+                         'HotPairingMRNA_he_P3_L2',
+                         'HotPairingMRNA_he_P3_L3',
+                         'HotPairingMRNA_he_P3_L4',
+                         'HotPairingMRNA_he_P3_L5',
+                         'HotPairingMRNA_he_P4_L1',
+                         'HotPairingMRNA_he_P4_L2',
+                         'HotPairingMRNA_he_P4_L3',
+                         'HotPairingMRNA_he_P4_L4',
+                         'HotPairingMRNA_he_P4_L5',
+                         'HotPairingMRNA_he_P5_L1',
+                         'HotPairingMRNA_he_P5_L2',
+                         'HotPairingMRNA_he_P5_L3',
+                         'HotPairingMRNA_he_P5_L4',
+                         'HotPairingMRNA_he_P5_L5',
+                         'HotPairingMRNA_he_P6_L1',
+                         'HotPairingMRNA_he_P6_L2',
+                         'HotPairingMRNA_he_P6_L3',
+                         'HotPairingMRNA_he_P6_L4',
+                         'HotPairingMRNA_he_P6_L5',
+                         'HotPairingMRNA_he_P7_L1',
+                         'HotPairingMRNA_he_P7_L2',
+                         'HotPairingMRNA_he_P7_L3',
+                         'HotPairingMRNA_he_P7_L4',
+                         'HotPairingMRNA_he_P7_L5',
+                         'HotPairingMRNA_he_P8_L1',
+                         'HotPairingMRNA_he_P8_L2',
+                         'HotPairingMRNA_he_P8_L3',
+                         'HotPairingMRNA_he_P8_L4',
+                         'HotPairingMRNA_he_P8_L5',
+                         'HotPairingMRNA_he_P9_L1',
+                         'HotPairingMRNA_he_P9_L2',
+                         'HotPairingMRNA_he_P9_L3',
+                         'HotPairingMRNA_he_P9_L4',
+                         'HotPairingMRNA_he_P9_L5',
+                         'HotPairingMirna_he_P1_L1',
+                         'HotPairingMirna_he_P1_L2',
+                         'HotPairingMirna_he_P1_L3',
+                         'HotPairingMirna_he_P1_L4',
+                         'HotPairingMirna_he_P1_L5',
+                         'HotPairingMirna_he_P2_L1',
+                         'HotPairingMirna_he_P2_L2',
+                         'HotPairingMirna_he_P2_L3',
+                         'HotPairingMirna_he_P2_L4',
+                         'HotPairingMirna_he_P2_L5',
+                         'HotPairingMirna_he_P3_L1',
+                         'HotPairingMirna_he_P3_L2',
+                         'HotPairingMirna_he_P3_L3',
+                         'HotPairingMirna_he_P3_L4',
+                         'HotPairingMirna_he_P3_L5',
+                         'HotPairingMirna_he_P4_L1',
+                         'HotPairingMirna_he_P4_L2',
+                         'HotPairingMirna_he_P4_L3',
+                         'HotPairingMirna_he_P4_L4',
+                         'HotPairingMirna_he_P4_L5',
+                         'HotPairingMirna_he_P5_L1',
+                         'HotPairingMirna_he_P5_L2',
+                         'HotPairingMirna_he_P5_L3',
+                         'HotPairingMirna_he_P5_L4',
+                         'HotPairingMirna_he_P5_L5',
+                         'HotPairingMirna_he_P6_L1',
+                         'HotPairingMirna_he_P6_L2',
+                         'HotPairingMirna_he_P6_L3',
+                         'HotPairingMirna_he_P6_L4',
+                         'HotPairingMirna_he_P6_L5',
+                         'HotPairingMirna_he_P7_L1',
+                         'HotPairingMirna_he_P7_L2',
+                         'HotPairingMirna_he_P7_L3',
+                         'HotPairingMirna_he_P7_L4',
+                         'HotPairingMirna_he_P7_L5',
+                         'HotPairingMirna_he_P8_L1',
+                         'HotPairingMirna_he_P8_L2',
+                         'HotPairingMirna_he_P8_L3',
+                         'HotPairingMirna_he_P8_L4',
+                         'HotPairingMirna_he_P8_L5',
+                         'HotPairingMirna_he_P9_L1',
+                         'HotPairingMirna_he_P9_L2',
+                         'HotPairingMirna_he_P9_L3',
+                         'HotPairingMirna_he_P9_L4',
+                         'HotPairingMirna_he_P9_L5']
+    expected_num_of_features = 580 - 90
+    p = Pool(1)
+    for i in range(first_self, last_self):
+        train_test_dir = csv_dir / f"train_test{i}"
+        results_dir = Path("Results") / f"self{i}"
+        for t in  train_test_dir.glob("*_test*"):
+            worker(dataset_file=t, results_dir=results_dir, yaml_file=yaml_file,
+                                 expected_num_of_features=expected_num_of_features,
+                                 features_to_remove=features_to_remove)
+
+
+        # for dataset_file in train_test_dir.glob("*_test*"):
+        #     worker(dataset_file, results_dir, yaml_file)
+
+
 
 @click.command()
 @click.argument('yaml_file')
@@ -199,6 +324,7 @@ def different_fit(yaml_file, first_self, last_self):
 cli.add_command(self_fit)
 cli.add_command(different_fit)
 cli.add_command(self_fit_random)
+cli.add_command(self_fit_no_encoding)
 
 
 
