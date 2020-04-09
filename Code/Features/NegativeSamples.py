@@ -1,11 +1,16 @@
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
+from TPVOD_Utils import utils
+
 from Duplex.ViennaRNADuplex import *
 from Bio import SeqIO
 import random
 from Duplex.SeedFeatures import *
 from Duplex.SeedFeaturesCompact import *
 import MirBaseUtils.mirBaseUtils as MBU
+from multiprocessing import Process
 
 
 from Duplex.InteractionRichPresentation import *
@@ -14,9 +19,8 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-
-
-
+from TPVOD_Utils.utils import filename_suffix_append
+from config import CONFIG
 
 
 class NegativeSamples(object):
@@ -84,22 +88,119 @@ class NegativeSamples(object):
         try:
             seed_feature_compact = SeedFeaturesCompact(c_seed)
             seed_feature_compact.extract_seed_features()
-            valid_seed_compact = seed_feature_compact.valid_seed()
+            canonic_seed = seed_feature_compact.canonical_seed()
+            non_canonic_seed = seed_feature_compact.non_canonical_seed()
         except SeedException:
-            valid_seed_compact = False
-            # No seed. This is invalid duplex
-            return (False, dp.num_of_pairs)
-
-        return valid_seed_compact , dp.num_of_pairs
+            canonic_seed = False
+            non_canonic_seed = False
+        return canonic_seed, non_canonic_seed, dp.num_of_pairs
 
     def generate_negative_seq (self, orig_mirna, full_mrna,
                                num_of_tries=10000):
 
         for i in range(num_of_tries):
             mock_mirna = self.generate_mirna_mock(orig_mirna)
-            valid_seed, num_of_pairs = self.valid_negative_seq (mock_mirna, full_mrna)
-            if valid_seed:
-                if num_of_pairs >= self.min_num_of_pairs:
-                    return True, mock_mirna, full_mrna
+            canonic_seed, non_canonic_seed, num_of_pairs = self.valid_negative_seq (mock_mirna, full_mrna)
+            cond1 = canonic_seed
+            cond2 = non_canonic_seed
+            #and num_of_pairs >= self.min_num_of_pairs
+            if cond1 or cond2:
+                properties = {
+                    "mock_mirna" : mock_mirna,
+                    "full_mrna" : full_mrna,
+                    "canonic_seed" : canonic_seed,
+                    "non_canonic_seed" : non_canonic_seed,
+                    "num_of_pairs" : num_of_pairs
+                }
+                return True, properties
+        return False, {}
 
-        return (False, np.nan, np.nan)
+def worker (organism, fin, tmp_dir):
+    fout = filename_suffix_append(fin,"_negative")
+    min_num_of_pairs = CONFIG["minimum_pairs_for_interaction"]
+    ns = NegativeSamples(organism, tmp_dir=tmp_dir, min_num_of_pairs=min_num_of_pairs)
+
+    in_df = pd.read_csv(fin)
+    cond1 = in_df["canonic_seed"]
+    # cond2 = (in_df["non_canonic_seed"]) & (in_df["num_of_pairs"] >= min_num_of_pairs)
+    cond2 = (in_df["non_canonic_seed"])
+
+    in_df = in_df[(cond1) | (cond2)]
+
+    neg_df = pd.DataFrame()
+
+    i=0
+    for index, row in in_df.iterrows():
+        print(f"$$$$$$$$$$$$$$$ {i} $$$$$$$$$$$$$$$$$$4")
+        i+=1
+        valid, properties = ns.generate_negative_seq(row['miRNA sequence'],row['full_mrna'])
+        if not valid:
+            continue
+
+        new_row = pd.Series()
+        new_row['Source'] = row['Source']
+        new_row['Organism'] = row['Organism']
+        new_row['microRNA_name'] = "mock " + row.microRNA_name
+        new_row['miRNA sequence'] = properties["mock_mirna"]
+        new_row['target sequence'] = row['full_mrna']
+        new_row['number of reads'] = row['number of reads']
+        new_row['mRNA_name'] = row.mRNA_name
+        new_row['mRNA_start'] = 0
+        new_row['mRNA_end'] = len(row['full_mrna'])
+        new_row['full_mrna'] = row['full_mrna']
+        new_row["canonic_seed"] = properties["canonic_seed"]
+        new_row["non_canonic_seed"] = properties["non_canonic_seed"]
+        new_row["num_of_pairs"] = properties["num_of_pairs"]
+
+        neg_df = neg_df.append(new_row, ignore_index=True)
+        # if i> 10:
+        #     break
+        #
+
+
+
+    ########################
+    # Save df to CSV
+    ########################
+
+    print (neg_df.head())
+
+    neg_df.reset_index(drop=True, inplace=True)
+    utils.drop_unnamed_col(neg_df)
+    neg_df.to_csv(fout)
+
+
+def main():
+
+    input_dir = Path("Datafiles_Prepare/CSV")
+
+    tmp_base = "Features/tmp_dir"
+
+    files = list(input_dir.glob("*duplex*.csv"))
+    files = [f for f in files if not f.match("*negative*")]
+    print (files)
+
+    process_list = []
+    for fin in files:
+        tmp_dir = utils.make_tmp_dir(tmp_base, parents=True)
+
+        organism = fin.stem.split("_")[0]
+        print (organism)
+
+        p = Process(target=worker, args=(organism, fin, tmp_dir))
+        p.start()
+        process_list.append(p)
+        print(f"start process {p.name} {fin}")
+
+    for p in process_list:
+        p.join()
+
+
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+

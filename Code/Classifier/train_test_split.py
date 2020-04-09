@@ -10,154 +10,140 @@ import seaborn as sns
 from multiprocessing import Process
 import click
 
+@click.group()
+def cli():
+    pass
+
+
 
 def neg_file (pos_file):
-    dataset = str(pos_file.stem).split("pos_")[1]
-    return pos_file.parent / f"neg_{dataset}.csv"
-
-def trainAll_trainfixed_test_split (df, test_size, seed):
-    ###################################
-    # Select the test
-    ###################################
-    self_train_all, test = train_test_split(df, test_size=test_size, random_state=seed+1)
-
-    ###################################
-    # Select the train
-    # Case1: train and test on the same data set
-    ###################################
-
-    try:
-        self_train_fixed, tmp = train_test_split(self_train_all, train_size=test_size, random_state=seed+2)
-    except ValueError:
-        self_train_all   = pd.DataFrame(columns=df.columns)
-        self_train_fixed = pd.DataFrame(columns=df.columns)
-
-    ###################################
-    # Select the train
-    # Case2: train and test on different data set
-    ###################################
-    if df.shape[0]<test_size:
-        different_train_all   = pd.DataFrame(columns=df.columns)
-        different_train_fixed = pd.DataFrame(columns=df.columns)
-    else:
-        different_train_all = df.copy()
-        different_train_fixed, tmp = train_test_split(different_train_all, train_size=test_size, random_state=seed+3)
-
-    ###################################
-    # Function output
-    ###################################
-    return test, \
-           self_train_fixed, self_train_all, \
-           different_train_fixed, different_train_all
+    n = str(pos_file)
+    n = n.replace("positive", "negative")
+    return Path(n)
 
 
-
-def select_feature (df, first_feature="Seed_match_compact_A"):
-    feature_loc = df.columns.get_loc(first_feature)
-    col_to_save = list(df.columns[feature_loc:])
-    col_to_save.insert(0, "microRNA_name")
-
-    return df[col_to_save]
-
-
-def create_train_test (input_dir, output_dir, minimun_pos_samples, seed):
-    pos_files = list(input_dir.glob('*pos*.csv'))
-
-    for f in pos_files:
-        print (f"working on files: pos={f}\t neg={neg_file(f)}")
-        pos = pd.read_csv(f)
-        if pos.shape[0] < minimun_pos_samples:
-            continue
-        neg = pd.read_csv(neg_file(f))
-        pos_lite = select_feature(pos)
-        neg_lite = select_feature(neg)
-        pos_lite.insert(0, "Label", 1)
-        neg_lite.insert(0, "Label", 0)
-        print (pos_lite.shape)
-
-        pos_test, \
-        pos_self_train_fixed, pos_self_train_all, \
-        pos_different_train_fixed, pos_different_train_all = \
-            trainAll_trainfixed_test_split(df=pos_lite, test_size=minimun_pos_samples, seed=seed)
-
-        neg_test, \
-        neg_self_train_fixed, neg_self_train_all, \
-        neg_different_train_fixed, neg_different_train_all = \
-            trainAll_trainfixed_test_split(df=neg_lite, test_size=minimun_pos_samples, seed=seed*100)
-
-
-        test                    = pd.concat([pos_test, neg_test], ignore_index=True)
-        self_train_fixed        = pd.concat([pos_self_train_fixed, neg_self_train_fixed], ignore_index=True)
-        self_train_all          = pd.concat([pos_self_train_all, neg_self_train_all], ignore_index=True)
-        different_train_fixed   = pd.concat([pos_different_train_fixed, neg_different_train_fixed], ignore_index=True)
-        different_train_all     = pd.concat([pos_different_train_all, neg_different_train_all], ignore_index=True)
-
-        var_file_list = [
-            (test, "test"),
-            (self_train_fixed, "self_train_fixed"),
-            (self_train_all, "self_train_all"),
-            (different_train_fixed, "different_train_fixed"),
-            (different_train_all, "different_train_all")
-        ]
-
-
-        dataset  = str(f.stem).split("pos_")[1]
-        for  d, name  in var_file_list:
-            out_file = f"{dataset}_{name}.csv"
-            d = d.reindex(np.random.RandomState(seed=seed).permutation(d.index))
-            d.to_csv(output_dir / out_file, index=False)
-
-
-def stratify_train_test_split (df, test_size , random_state ):
+def stratify_train_test_split (df, test_size , random_state):
     #Change: all the unique miRNA were put in the test set
     uniques_mirna = df[df.groupby("microRNA_name").microRNA_name.transform(len)==1]
     non_uniques_mirna = df[df.groupby("microRNA_name").microRNA_name.transform(len)>1]
 
     #dealing with the non_uniques_mirna
-    non_uniques_train, non_uniques_test = train_test_split(non_uniques_mirna, test_size =test_size ,
+    non_uniques_train, non_uniques_test = train_test_split(non_uniques_mirna, test_size=test_size,
                                                            random_state=random_state,
-                                                           stratify= non_uniques_mirna["microRNA_name"])
+                                                           stratify=non_uniques_mirna["microRNA_name"])
 
     train = pd.concat([non_uniques_train])
     test = pd.concat([non_uniques_test, uniques_mirna])
     return train, test
 
 
+def stratify_train_test_split_worker(input_file, output_dir, test_size, random_state):
+    print (f"working on file: pos={input_file}")
 
-def create_stratify_train_test_split (input_dir, output_dir, test_size, seed):
-    def train_val_test_split (df, label):
-        df_dict = {}
-        df_dict["train"], df_dict["test"] = stratify_train_test_split(df, test_size, seed)
-        df_dict["train_train"], df_dict["train_val"] = stratify_train_test_split(df_dict["train"], test_size,
-                                                                                       seed)
-        for key in df_dict.keys():
-            df_dict[key] = select_feature(df_dict[key])
-            df_dict[key].insert(0, "Label", label)
+    pos = pd.read_csv(input_file)
+    pos.insert(0, "Label", 1)
+    neg = pd.read_csv(neg_file(input_file))
+    neg.insert(0, "Label", 0)
+    #Both dataset must have the same columns
+    col = [c for c in pos.columns if c in neg.columns]
+    pos = pos[col]
+    neg = neg[col]
 
-        return df_dict
+    pos_train, pos_test = stratify_train_test_split(pos, test_size, random_state)
+    neg_train, neg_test = stratify_train_test_split(neg, test_size, random_state)
 
-    pos_files = list(input_dir.glob('*pos*.csv'))
+    # concat the pos & neg
+    output = {
+        "train" : pos_train.append(neg_train, ignore_index=True),
+        "test" : pos_test.append(neg_test, ignore_index=True)
+    }
 
-    for f in pos_files:
-        print (f"working on files: pos={f}\t neg={neg_file(f)}")
-        #Create the positives
-        pos = pd.read_csv(f)
-        pos_dict = train_val_test_split(pos, 1)
+    # save to csv
+    dataset  = str(input_file.stem).split("_duplex_")[0]
+    for key, d in output.items():
+        out_file = f"{dataset}_{key}.csv"
+        d = d.reindex(np.random.RandomState(seed=random_state).permutation(d.index))
+        d.to_csv(output_dir / out_file, index=False)
 
-        # Create the negatives
-        neg = pd.read_csv(neg_file(f))
-        neg_dict = train_val_test_split(neg, 0)
 
-        # concat the pos & neg
-        for key in pos_dict.keys():
-            pos_dict[key] = pos_dict[key].append(neg_dict[key], ignore_index=True)
+def random_train_test_split_worker(input_file, output_dir, test_size, random_state):
+    print (f"working on file: pos={input_file}")
 
-        # save to csv
-        dataset  = str(f.stem).split("pos_")[1]
-        for key, d in pos_dict.items():
-            out_file = f"{dataset}_{key}.csv"
-            d = d.reindex(np.random.RandomState(seed=seed).permutation(d.index))
-            d.to_csv(output_dir / out_file, index=False)
+    pos = pd.read_csv(input_file)
+    pos.insert(0, "Label", 1)
+    neg = pd.read_csv(neg_file(input_file))
+    neg.insert(0, "Label", 0)
+    #Both dataset must have the same columns
+    col = [c for c in pos.columns if c in neg.columns]
+    pos = pos[col]
+    neg = neg[col]
+
+    pos_train, pos_test = train_test_split(pos, test_size=test_size, random_state=random_state)
+    neg_train, neg_test = train_test_split(neg, test_size=test_size, random_state=random_state)
+
+    # concat the pos & neg
+    output = {
+        "train" : pos_train.append(neg_train, ignore_index=True),
+        "test" : pos_test.append(neg_test, ignore_index=True)
+    }
+
+    # save to csv
+    dataset  = str(input_file.stem).split("_duplex_")[0]
+    for key, d in output.items():
+        out_file = f"{dataset}_{key}.csv"
+        d = d.reindex(np.random.RandomState(seed=random_state).permutation(d.index))
+        d.to_csv(output_dir / out_file, index=False)
+
+
+
+
+
+@cli.command()
+@click.option('--n', type=int, required=True,
+              help="How many time to do this")
+def split(n):
+    test_size = 0.2
+    csv_dir = Path("Features/CSV")
+    process_list = []
+
+    for i in range (n):
+        train_test_dir = csv_dir / f"train_test{i}"
+        train_test_dir.mkdir(exist_ok=True)
+
+        for f in csv_dir.glob("*duplex_positive_feature*.csv"):
+            ###########################################3
+            # Create train_test
+            ###########################################3
+            p = Process(target=stratify_train_test_split_worker, args=(f, train_test_dir, test_size, i*19))
+            p.start()
+            process_list.append(p)
+    for p in process_list:
+        p.join()
+
+@cli.command()
+@click.option('--n', type=int, required=True,
+              help="How many time to do this")
+def split_random(n):
+    test_size = 0.2
+    csv_dir = Path("Features/CSV")
+    process_list = []
+
+    for i in range (n):
+        train_test_dir = csv_dir / f"random_train_test{i}"
+        train_test_dir.mkdir(exist_ok=True)
+
+        for f in csv_dir.glob("*duplex_positive_feature*.csv"):
+            ###########################################3
+            # Create train_test
+            ###########################################3
+            p = Process(target=random_train_test_split_worker, args=(f, train_test_dir, test_size, i*7))
+            p.start()
+            process_list.append(p)
+    for p in process_list:
+        p.join()
+
+
+
 
 
 def create_train_dataset_in_steps (f:Path, step_size: int, random_state: int):
@@ -258,54 +244,17 @@ def dataset_statistics_plot(id=0):
     res = res.astype(int)
     print(res.to_latex())
 
-
-@click.command()
-@click.option('--split',  default=0, type=int, help="split the datasets to train, test, val. you ave to provide how many time to do this")
-@click.option('--stat', is_flag=True,  help='Generate stat')
-@click.option('--split_size',  default=(None, 0, 1), type=(Path, int, int), help="split the train into smaller and smaller parts")
-
-def cli(split,stat, split_size):
-    csv_dir = Path("Features/CSV")
-    process_list = []
-
-    for i in range (split):
-        train_test_dir = csv_dir / f"train_test{i}"
-        train_test_dir.mkdir()
-
-        ###########################################3
-        # Create train_test
-        ###########################################3
-        p = Process(target=create_stratify_train_test_split, args=(csv_dir, train_test_dir, 0.2, i*7))
-        p.start()
-        process_list.append(p)
-    for p in process_list:
-        p.join()
-
-    if stat:
-        # process_list = []
-        # for i in range(10):
-        #     p = Process(target=dataset_statistics, args=(i, ))
-        #     p.start()
-        #     process_list.append(p)
-        # for p in process_list:
-        #     p.join()
-
-        dataset_statistics_plot()
-    f, step_size, random_state = split_size
-    if f is not None:
-        create_train_dataset_in_steps(Path(f), step_size, random_state)
-
-
-def main():
-    # dataset_statistics()
-    # cli ()
-    train_test_size()
 #
-# def main():
+# @click.command()
+# @click.option('--split',  default=0, type=int, help="split the datasets to train, test, val. you ave to provide how many time to do this")
+# @click.option('--stat', is_flag=True,  help='Generate stat')
+# @click.option('--split_size',  default=(None, 0, 1), type=(Path, int, int), help="split the train into smaller and smaller parts")
+#
+# def cli(split,stat, split_size):
 #     csv_dir = Path("Features/CSV")
 #     process_list = []
 #
-#     for i in range (10):
+#     for i in range (split):
 #         train_test_dir = csv_dir / f"train_test{i}"
 #         train_test_dir.mkdir()
 #
@@ -318,8 +267,23 @@ def main():
 #     for p in process_list:
 #         p.join()
 #
+#     if stat:
+#         # process_list = []
+#         # for i in range(10):
+#         #     p = Process(target=dataset_statistics, args=(i, ))
+#         #     p.start()
+#         #     process_list.append(p)
+#         # for p in process_list:
+#         #     p.join()
+#
+#         dataset_statistics_plot()
+#     f, step_size, random_state = split_size
+#     if f is not None:
+#         create_train_dataset_in_steps(Path(f), step_size, random_state)
 #
 
 
+
+
 if __name__ == "__main__":
-    main()
+    cli()

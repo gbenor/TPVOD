@@ -9,7 +9,9 @@ from Duplex.SeedFeaturesCompact import SeedFeaturesCompact
 
 def seed_interaction_add (fin, fout, tmp_dir):
     i=0
-    df = pd.read_csv(fin)
+    relevant_col = ["Source", "Organism",  "GI_ID", "microRNA_name", "miRNA sequence", "target sequence",
+                    "number of reads", "mRNA_name",	"mRNA_start", "mRNA_end", "full_mrna"]
+    df = pd.read_csv(fin, usecols=relevant_col)
     for index, row in df.iterrows():
         # i += 1
         # if i> 50:
@@ -37,9 +39,12 @@ def seed_interaction_add (fin, fout, tmp_dir):
             seed_feature_compact = SeedFeaturesCompact(c_seed)
             seed_feature_compact.extract_seed_features()
             valid_seed_compact = seed_feature_compact.valid_seed()
+            canonic_seed = seed_feature_compact.canonical_seed()
+            non_canonic_seed = seed_feature_compact.non_canonical_seed()
         except SeedException:
             valid_seed_compact = False # No seed. This is invalid duplex
-
+            canonic_seed = False
+            non_canonic_seed = False
         ############################################################################
         # Getting the information
         ############################################################################
@@ -47,6 +52,8 @@ def seed_interaction_add (fin, fout, tmp_dir):
 
         df.loc[index, "num_of_pairs"] = dp.num_of_pairs
         df.loc[index, "valid_seed"] = valid_seed_compact
+        df.loc[index, "canonic_seed"] = canonic_seed
+        df.loc[index, "non_canonic_seed"] = non_canonic_seed
 
         for k, pair in enumerate(dp.IRP.mir_pairing_iterator()):
             int_flag = 1 if " " not in pair else 0
@@ -76,6 +83,7 @@ def main ():
         p.start()
         process_list.append(p)
         print (f"start process {p.name} {fin}")
+
     for p in process_list:
         p.join()
 

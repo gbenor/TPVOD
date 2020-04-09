@@ -4,6 +4,7 @@ import pandas as pd
 import itertools
 data_prepare_log_dir = Path("Datafiles_Prepare/Logs/")
 data_prepare_csv_dir = Path("Datafiles_Prepare/CSV/")
+features_csv_dir = Path("Features/CSV/")
 
 
 
@@ -52,17 +53,29 @@ def dataset_information ():
 
         s.loc ["Dataset", index] = dataset
         s.loc ["Samples", index] = pipe_in
-        s.loc ["Valid_utr3", index] = min (valid_utr3, valid_mirna)
+        s.loc ["UTR3", index] = min (valid_utr3, valid_mirna)
 
-        dp_file = data_prepare_csv_dir / f"{dataset}.csv"
+        dp_file = data_prepare_csv_dir / f"{dataset}_duplex_positive.csv"
         df = pd.read_csv(dp_file)
-        valid_duplex_df  = df[df["num_of_pairs"] >= min_num_of_pairs]
-        valid_duplex = valid_duplex_df.shape[0]
-        valid_seeds = sum(valid_duplex_df["valid_seed"])
+        # valid_duplex_df  = df[df["num_of_pairs"] >= min_num_of_pairs]
+        # valid_duplex = valid_duplex_df.shape[0]
+        # valid_seeds = sum(valid_duplex_df["valid_seed"])
+        non_canonic_seed = sum(df["non_canonic_seed"])
+        canonic_seed = sum(df["canonic_seed"])
 
-        s.loc ["Valid duplex", index] = valid_duplex
-        s.loc ["Valid seeds", index] = valid_seeds
-        s.loc ["Final size", index] = valid_seeds*2
+        s.loc ["Canonic Seed", index] = canonic_seed
+        s.loc ["Non Canonic Seed", index] = non_canonic_seed
+        s.loc ["Valid Samples", index] = non_canonic_seed + canonic_seed
+
+        # feature_file = features_csv_dir / f"{dataset}_duplex_positive_feature.csv"
+        # df = pd.read_csv(feature_file)
+        # s.loc["positive", index] = df.shape[0]
+        # feature_file = features_csv_dir / f"{dataset}_duplex_negative_feature.csv"
+        # df = pd.read_csv(feature_file)
+        # s.loc["negative", index] = df.shape[0]
+        #
+
+        # s.loc ["Final size", index] = valid_seeds*2
 
     s.sort_values(by='Dataset', axis=1, inplace=True)
     print (s)
@@ -141,9 +154,13 @@ def dataset_information ():
 #
 #
 
+
+
+
+
 def main():
-    files_rename(data_prepare_csv_dir.glob('*duplex*.csv'), "csv")
-    files_rename(data_prepare_log_dir.glob("*json"), "json")
+    # files_rename(data_prepare_csv_dir.glob('*duplex*.csv'), "csv")
+    # files_rename(data_prepare_log_dir.glob("*json"), "json")
     lat = dataset_information()
     print(lat)
 

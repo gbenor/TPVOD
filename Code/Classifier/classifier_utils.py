@@ -11,6 +11,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 import sklearn
 from xgboost import XGBClassifier
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 CLF_DICT = {
     'rf': RandomForestClassifier(),
@@ -55,17 +56,63 @@ def custom_gridsearch (clf_name: str, dataset_name: str, conf:dict, result_dir: 
     print(grid_obj.best_score_ * 2 - 1)
     results = pd.DataFrame(grid_obj.cv_results_)
     results.to_csv(output_file, index=False)
+#
+# def read_feature_csv(f: Path, data=None, expected_num_of_features = 580, features_to_remove=[]) -> DataFrame:
+#     if data is None:
+#         data: DataFrame = pd.read_csv(f)
+#     y = data.Label.ravel()
+#     col_list = list(data.columns)
+#     feature_index = col_list.index("Seed_match_compact_A")
+#     data.drop(columns=col_list[:feature_index], inplace=True)
+#     if len(features_to_remove)>0:
+#         data.drop(columns=features_to_remove, inplace=True)
+#
+#     assert len(data.columns)==expected_num_of_features, f"""Read error. Wrong number of features.
+#     Read: {len(data.columns)}
+#     Expected: {expected_num_of_features}"""
+#     return data, y
 
-def read_feature_csv(f: Path) -> DataFrame:
+#
+
+
+def read_feature_csv(f: Path, expected_num_of_features = 580) -> (DataFrame, ndarray):
     data: DataFrame = pd.read_csv(f)
+    y = data.Label.ravel()
     col_list = list(data.columns)
     feature_index = col_list.index("Seed_match_compact_A")
     data.drop(columns=col_list[:feature_index], inplace=True)
-    expected_num_of_features = 580
+
     assert len(data.columns)==expected_num_of_features, f"""Read error. Wrong number of features.
     Read: {len(data.columns)}
     Expected: {expected_num_of_features}"""
-    return data
+    return data, y
+
+
+
+
+def clf_performance_report(y_true, y_pred):
+    TN, FP, FN, TP = confusion_matrix(y_true, y_pred).ravel()
+    report = {
+        # Sensitivity, hit rate, recall, or true positive rate
+        "TPR" : TP / (TP + FN),
+        # Specificity or true negative rate
+        "TNR" : TN / (TN + FP),
+        # Precision or positive predictive value
+        "PPV" : TP / (TP + FP),
+        # Negative predictive value
+        "NPV" : TN / (TN + FN),
+        # Fall out or false positive rate
+        "FPR" : FP / (FP + TN),
+        # False negative rate
+        "FNR" : FN / (TP + FN),
+        # False discovery rate
+        "FDR" : FP / (TP + FP),
+
+        # Overall accuracy
+        "ACC" : (TP + TN) / (TP + FP + FN + TN),
+    }
+    assert report["ACC"] == accuracy_score(y_true, y_pred)
+    return report
 
 
 

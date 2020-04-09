@@ -86,6 +86,7 @@ class SeedFeaturesCompact(object):
         raise SeedException("not valid seed. No interaction at all")
 
     def canonical_seed (self):
+        assert self.smt_dic is not None, "The seed dict hasn't initiated yet."
         c2_7 = self.smt_dic['Seed_match_compact_interactions_2_7']
         c3_8 = self.smt_dic['Seed_match_compact_interactions_3_8']
         bulge_mismatch_2_7 = max(count_not_space(self.s2_7.seed.mir_bulge), count_not_space(self.s2_7.seed.mrna_bulge))
@@ -95,6 +96,7 @@ class SeedFeaturesCompact(object):
         return (c2_7==6) or (c3_8==6)
 
     def non_canonical_seed (self):
+        assert self.smt_dic is not None, "The seed dict hasn't initiated yet."
         c2_7 = self.smt_dic['Seed_match_compact_interactions_2_7'] + self.smt_dic['Seed_match_compact_GU_2_7']
         c3_8 = self.smt_dic['Seed_match_compact_interactions_3_8'] + self.smt_dic['Seed_match_compact_GU_3_8']
         bulge_mismatch_2_7 = max(count_not_space(self.s2_7.seed.mir_bulge), count_not_space(self.s2_7.seed.mrna_bulge)) - self.smt_dic['Seed_match_compact_GU_2_7']

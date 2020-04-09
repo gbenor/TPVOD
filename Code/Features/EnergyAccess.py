@@ -48,7 +48,10 @@ class EnergyAccess(object):
         duplex = RNA.duplexfold(dp.mir, mrna_site[::-1])
         MEF_duplex = duplex.energy
 
-        MFE_3p = RNA.fold(mrna_site_3p)
+        if mrna_site_3p=="":
+            MFE_3p = (0, 0)
+        else:
+            MFE_3p = RNA.fold(mrna_site_3p)
 
         constraint_low = "."*min(mr_site_loc[0],50)
         constraint_site = "x"*len(mrna_site)

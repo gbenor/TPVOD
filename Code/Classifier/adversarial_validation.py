@@ -11,34 +11,17 @@ import xgboost as xgb
 from multiprocessing import Process
 from pandas import DataFrame
 from classifier_utils import create_dataset_for_adversarial_validation, read_feature_csv, custom_gridsearch
+import click
 
-
-def same_dataset_files(path: Path) -> List[List[Tuple]]:
-    dataset_prefix = [f.stem.split("_train_train")[0] for f in path.glob("*dataset*_train_train.csv")]
-    dataset = [[path / f"{d}_{suffix}.csv" for suffix in ["test", "train_val", "train_train"]] for d in dataset_prefix]
-    all_combinations = [list(combinations(d, 2)) for d in dataset]
-    return all_combinations
-
-def different_dataset_files(path: Path) -> List[List[Tuple]]:
-    # dataset_prefix = [f.stem.split("_train_train")[0] for f in path.glob("*dataset*_train_train.csv")]
-    # dataset = [[path / f"{d}_{suffix}.csv" for suffix in ["test", "train_val", "train_train"]] for d in dataset_prefix]
-    all_combinations = [list(combinations( path.glob("*pos*"), 2)) ]
-    return all_combinations
-
+@click.group()
+def cli():
+    pass
+#
 def adv_validation_worker (pair: Tuple[Path, Path], return_dict: Dict[Tuple, float]):
     print(pair)
+    d0 = read_feature_csv(pair[0])
+    d1 = read_feature_csv(pair[1])
 
-    d0 = pd.read_csv(pair[0])
-    col_list = list(d0.columns)
-    feature_index = col_list.index("Seed_match_compact_A")
-    d0.drop(columns=col_list[:feature_index], inplace=True)
-
-    d1 = pd.read_csv(pair[1])
-    col_list = list(d1.columns)
-    feature_index = col_list.index("Seed_match_compact_A")
-    d1.drop(columns=col_list[:feature_index], inplace=True)
-
-    # X, y = create_dataset_for_adversarial_validation(d0, d1, col_to_drop=['Label', 'microRNA_name'])
     X, y = create_dataset_for_adversarial_validation(d0, d1, col_to_drop=[])
     skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=44)
     xgb_params = {
@@ -70,26 +53,30 @@ def test_dataset_coherency_worker(data: DataFrame, dataset_name, conf_yaml: Path
     d0, d1 = train_test_split(data, test_size=0.5)
     X, y = create_dataset_for_adversarial_validation(d0, d1, col_to_drop=[])
     clf_name = "xgbs"
-    custom_gridsearch(clf_name, dataset_name, conf[clf_name], result_dir, "roc_auc", X, y, 3)
+    custom_gridsearch(clf_name, dataset_name, conf[clf_name], result_dir, "roc_auc", X, y, 10)
 
 
-def test_dataset_coherency():
+@click.command()
+@click.option('--conf_yaml', type=Path, required=True,
+              help="Yaml xGBoost config.")
+def test_dataset_coherency(conf_yaml: Path):
     dataset_dir = Path("Features/CSV")
-    conf_yaml = Path("../Code/Classifier/yaml/xgbs_params.yml")
     result_dir = Path("Results/adversarial_validation/dataset")
-    for pos_file in dataset_dir.glob("pos*.csv"):
-        dataset_name = pos_file.stem.replace("pos_", "")
-        neg_file = dataset_dir / (pos_file.stem.replace("pos", "neg") + ".csv")
+    result_dir.mkdir(parents=True, exist_ok=True)
+    for pos_file in dataset_dir.glob("*positive*.csv"):
+        print (pos_file)
+        dataset_name = pos_file.stem.replace("duplex_positive_feature", "")
+        neg_file = dataset_dir / (pos_file.stem.replace("positive", "negative") + ".csv")
         pos = read_feature_csv(pos_file)
         neg = read_feature_csv(neg_file)
         data = pd.concat([pos, neg])
         test_dataset_coherency_worker(data, dataset_name, conf_yaml, result_dir)
 
-
-def test_dataset_coherency_result():
-    results_dir = Path("Results/adversarial_validation/dataset")
-    summary = pd.DataFrame()
-    for i, res_file in enumerate(results_dir.glob("*_xgbs.csv")):
+@click.command()
+@click.option('--dir', type=Path, required=True, help="result dir")
+def summary(dir: Path):
+    summary_df = pd.DataFrame()
+    for i, res_file in enumerate(dir.glob("*_xgbs.csv")):
         name = res_file.stem.split("_xgbs")[0]
         print (f"file: {res_file}       name:{name}")
 
@@ -97,19 +84,48 @@ def test_dataset_coherency_result():
         best = df[df["rank_test_score"]==1].head(1)
         m = round(best["mean_test_score"].item(), 3)
         s = round(best["std_test_score"].item(), 3)
-        summary.loc[name, "ROC-AUC"] = f"{m} ({s})"
-        print (summary)
-    summary.sort_index(inplace=True)
-    print(summary)
-    summary.to_csv(results_dir/ "summary.csv")
+        summary_df.loc[name, "ROC-AUC"] = f"{m} ({s})"
+        print (summary_df)
+    summary_df.sort_index(inplace=True)
+    print(summary_df)
+    summary_df.to_csv(dir/ "summary.csv")
     print(60*"*")
-    print(summary.to_latex())
+    print(summary_df.to_latex())
+
+@click.command()
+# @click.argument(dir, type=Path)
+@click.option('--dir', type=Path, required=True, help="Train test directory.")
+@click.option('--conf_yaml', type=Path, required=True,
+              help="Yaml xGBoost config.")
+def train_test_coherency(dir: Path, conf_yaml: Path):
+    result_dir = Path("Results/adversarial_validation/train_test")
+    result_dir = result_dir / dir.parts[-1]
+    result_dir.mkdir(parents=True,  exist_ok=True)
+
+    with conf_yaml.open("r") as stream:
+        conf = yaml.safe_load(stream)
+    for train in dir.glob("*train*.csv"):
+        dataset_name = train.stem.replace("positive", "")
+        test = Path(str(train).replace("train.csv", "test.csv"))
+        print(train)
+        d0 = read_feature_csv(train)
+        d1 = read_feature_csv(test)
+        X, y = create_dataset_for_adversarial_validation(d0, d1, col_to_drop=[])
+        clf_name = "xgbs"
+        custom_gridsearch(clf_name, dataset_name, conf[clf_name], result_dir, "roc_auc", X, y, 10)
 
 
 
-def main():
-    # test_dataset_coherency()
-    test_dataset_coherency_result()
+
+
+cli.add_command(test_dataset_coherency)
+cli.add_command(summary)
+cli.add_command(train_test_coherency)
+
+
+# def main():
+#     # test_dataset_coherency()
+#     test_dataset_coherency_result()
 
     # # path = Path("Features/CSV/train_test3")
     # # all_combinations = same_dataset_files(path)
@@ -139,6 +155,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli()
 
 

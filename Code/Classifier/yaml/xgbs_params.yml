@@ -24,7 +24,7 @@ xgbs:
     max_depth:
     - 2
     - 10
-    - 2
+    - 20
     min_child_weight:
     - 1
     - 5

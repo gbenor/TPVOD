@@ -1,14 +1,21 @@
 import pickle
+from functools import partial
+from itertools import combinations
 from multiprocessing import Process
-from typing import List
+from typing import List, Tuple
+import matplotlib.pyplot as plt
 
 import pandas as pd
 from pathlib import Path
 from collections import ChainMap
 
+from seaborn import heatmap
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 from ClassifierWithGridSearch import ClassifierWithGridSearch
+import FeatureReader
+from FeatureReader import get_reader
+
 from TPVOD_Utils import utils
 import json
 import ast
@@ -18,13 +25,24 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 from xgboost import XGBClassifier
 from sklearn.model_selection import PredefinedSplit
 import ast
+from multiprocessing import Pool
 
 import pandas as pd
 import numpy as np
 
-from classifier_utils import read_feature_csv
 from dataset import Dataset
 from pandas import DataFrame
+
+
+DATASET_LIST = ['human_dataset1', 'human_dataset2', 'human_dataset3', 'mouse_dataset1',  'mouse_dataset2',
+                'celegans_dataset1', 'celegans_dataset2', 'cattle_dataset1']
+DATASET_LIST.sort()
+
+
+
+class NoModelFound(Exception):
+    pass
+
 
 def measurement (y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
@@ -91,41 +109,48 @@ def run_test (dataset, train_cfg, best_params, method, train_test_dir = Path("Fe
     model.fit(X_train, y_train)
     return model.score(X_test, y_test)
 
+def get_presaved_clf(results_dir: Path, dataset: str, method: str):
+    clf_file = results_dir / f"{dataset}_{method}.model"
+    if not clf_file.is_file():
+        raise NoModelFound(f"No model found: {clf_file}")
+    with clf_file.open("rb") as f:
+        clf = pickle.load(f)
+    return clf
 
-def self_results_summary(id: int):
-    results_dir = Path("Results") / f"self{id}"
-    train_test_dir = Path(f"Features/CSV/train_test{id}")
-
+def self_results_summary(id: int, prefix=""):
+    ms_table = None
+    results_dir = Path("Results") / f"{prefix}self{id}"
+    train_test_dir = Path(f"Features/CSV/{prefix}train_test{id}")
+    methods = ['xgbs_no_encoding', 'rf', 'KNeighborsClassifier', 'SGD', 'SVM', 'logit']
     res_table: DataFrame = pd.DataFrame()
+    feature_reader = get_reader()
 
     for f_test in train_test_dir.glob("*test*"):
-        print (f"test: {f_test}")
-        clf = ClassifierWithGridSearch(f_test, results_dir)
-        for i, f_result in enumerate(results_dir.glob(f"*{clf.dataset_name}*.csv")):
-            #dataset_name
-            print (f"res file: {f_result}")
-            f_stem: str = f_result.stem
-            dataset = f_stem[:f_stem.find("dataset")+8]
-            assert dataset==clf.dataset_name, f"dataset not equal {dataset}   {clf.dataset_name}"
-            method = f_stem.split("_")[2]
+        f_stem = f_test.stem
+        dataset = f_stem[:f_stem.find("dataset") + 8]
+        for method in methods:
+            print(f"test: {f_test}, method: {method}")
+            try:
+                clf = get_presaved_clf(results_dir, dataset,method)
+                X_test, y_test = feature_reader.file_reader(f_test)
 
-            print (dataset)
-            print(method)
-            df = pd.read_csv(f_result)
-            best = df[df["rank_test_score"]==1]
-            params = (best.head(1)["params"]).item()
-            params =  ast.literal_eval(params)
-            best_clf = clf.fit_best_clf(method, params)
+                test_score = accuracy_score(y_test, clf.predict(X_test))
 
+                res_table.loc[dataset, method] = round(test_score, 3)
 
-            X_test = read_feature_csv(f_test)
-            y_test = pd.read_csv(f_test).Label.ravel()
-            test_score = accuracy_score(y_test, best_clf.predict(X_test))
-
-            res_table.loc[dataset, method] = round(test_score, 3)
-
-            print(res_table)
-            res_table.to_csv(results_dir / "summary.csv")
+                print(res_table)
+                res_table.to_csv(results_dir / "summary.csv")
+                if method in ["xgbs_no_encoding", "xgbs"]:
+                    feature_importance = xgbs_feature_importance(clf, X_test)
+                    feature_importance.to_csv(results_dir / f"feature_importance_{dataset}.csv")
+                    print("save feature importance file")
+                    ms =  measurement(y_test, clf.predict(X_test))
+                    if ms_table is None:
+                        ms_table = pd.DataFrame(columns=list(ms.keys()))
+                    ms_table.loc[dataset] = ms
+                    ms_table.to_csv(results_dir / "xgbs_measurements.csv")
+            except NoModelFound:
+                pass
 
     res_table.sort_index(inplace=True)
     print(res_table)
@@ -170,96 +195,112 @@ def self_results_summary_model(id: int):
 
 
 
-def different_results_summary():
-    results_dirs = [x for x in Path("Results").iterdir() if x.is_dir() and x.match("*different*")]
-    train_test_dir_parent = Path("Features/CSV/")
+def different_results_summary(id: int):
+    def get_test_dataset(name, test_file_dir=Path("Features/CSV"), random_state=22):
+        pos_file = test_file_dir / f"{name}_duplex_positive_feature.csv"
+        neg_file = test_file_dir / f"{name}_duplex_negative_feature.csv"
 
+        pos = pd.read_csv(pos_file)
+        pos.insert(0, "Label", 1)
+        neg = pd.read_csv(neg_file)
+        neg.insert(0, "Label", 0)
+        # Both dataset must have the same columns
+        col = [c for c in pos.columns if c in neg.columns]
+        pos = pos[col]
+        neg = neg[col]
+
+        test = pos.append(neg, ignore_index=True)
+        return test.reindex(np.random.RandomState(seed=random_state).permutation(test.index))
+
+
+    results_dir = Path("Results") / f"self{id}"
+    train_test_dir = Path(f"Features/CSV/train_test{id}")
+
+    clf_datasets = [f.stem.split("_xgbs")[0] for f in results_dir.glob("*_xgbs*model")]
     res_table = pd.DataFrame()
+    methods = ["xgbs_no_encoding"]
+    res_table: DataFrame = pd.DataFrame()
+    feature_reader = get_reader()
 
-    for results_dir in results_dirs:
-        print (results_dir)
-        id = str(results_dir).split("different")[1]
-        train_test_dir = train_test_dir_parent / f"train_test{id}"
+    for clf_dataset in clf_datasets:
+        for test_dataset in DATASET_LIST:
+            for method in methods:
+                print(f"clf: {clf_dataset}    test: {test_dataset}, method: {method}")
+                try:
+                    clf = get_presaved_clf(results_dir, clf_dataset, method)
+                    if test_dataset != clf_dataset:
+                        # X_test, y_test = read_feature_csv(f=None, data=get_test_dataset(test_dataset))
+                        X_test, y_test = feature_reader.df_reader(get_test_dataset(test_dataset))
 
-        for i, f_train in enumerate(results_dir.glob("*results*.csv")):
-            print (f_train)
-            s = f_train.stem
-            train_dataset = s.split("_different")[0]
-            train_dataset_type = "fixed" if f_train.match("*fixed*") else "all"
+                    else:
+                        # X_test, y_test = read_feature_csv(f=train_test_dir/f"{test_dataset}_test.csv")
+                        X_test, y_test = feature_reader.file_reader(train_test_dir/f"{test_dataset}_test.csv")
 
-            df = pd.read_csv(f_train)
-            best = df[df["rank_test_score"]==1]
-            params = (best.head(1)["params"]).item()
-            params =  ast.literal_eval(params)
+                    test_score = accuracy_score(y_test, clf.predict(X_test))
 
+                    res_table.loc[clf_dataset, test_dataset] = round(test_score, 3)
+                    print(res_table)
+                    res_table.to_csv(results_dir / "diff_summary.csv")
+                except NoModelFound:
+                    pass
 
-            f_train_data = train_test_dir / f"{train_dataset}_different_train_{train_dataset_type}.csv"
-            train = pd.read_csv(f_train_data)
-            X_train = train.drop(["Label"], axis=1)
-            y_train = train.Label.ravel()
+    res_table.sort_index(axis=0, inplace=True)
+    res_table.sort_index(axis=1, inplace=True)
 
-            print (f"Train file={f_train_data}")
-            model = XGBClassifier(**params)
-            print(model)
-            model.fit(X_train, y_train)
+    print(res_table)
+    print(res_table.to_latex())
+    res_table.to_csv(results_dir / "diff_summary.csv")
 
-            for f_test in train_test_dir.glob("*test*"):
-                test_dataset = str(f_test.stem).split("_test")[0]
-                if train_dataset==test_dataset:
-                    continue
-                print (f"Test file={f_test}")
-                test = pd.read_csv(f_test)
-                X_test = test.drop(["Label"], axis=1)
-                y_test = test.Label.ravel()
-                score =  model.score(X_test, y_test)
+    # for results_dir in results_dirs:
+    #     print (results_dir)
+    #     id = str(results_dir).split("different")[1]
+    #     train_test_dir = train_test_dir_parent / f"train_test{id}"
+    #
+    #     for i, f_train in enumerate(results_dir.glob("*results*.csv")):
+    #         print (f_train)
+    #         s = f_train.stem
+    #         train_dataset = s.split("_different")[0]
+    #         train_dataset_type = "fixed" if f_train.match("*fixed*") else "all"
+    #
+    #         df = pd.read_csv(f_train)
+    #         best = df[df["rank_test_score"]==1]
+    #         params = (best.head(1)["params"]).item()
+    #         params =  ast.literal_eval(params)
+    #
+    #
+    #         f_train_data = train_test_dir / f"{train_dataset}_different_train_{train_dataset_type}.csv"
+    #         train = pd.read_csv(f_train_data)
+    #         X_train = train.drop(["Label"], axis=1)
+    #         y_train = train.Label.ravel()
+    #
+    #         print (f"Train file={f_train_data}")
+    #         model = XGBClassifier(**params)
+    #         print(model)
+    #         model.fit(X_train, y_train)
+    #
+    #         for f_test in train_test_dir.glob("*test*"):
+    #             test_dataset = str(f_test.stem).split("_test")[0]
+    #             if train_dataset==test_dataset:
+    #                 continue
+    #             print (f"Test file={f_test}")
+    #             test = pd.read_csv(f_test)
+    #             X_test = test.drop(["Label"], axis=1)
+    #             y_test = test.Label.ravel()
+    #             score =  model.score(X_test, y_test)
+    #
+    #             res_table.loc[f"{train_dataset_type}_{train_dataset}", test_dataset] = round(score, 3)
+    #         print(res_table)
+    #     #
+    #     #     # if i > 7:
+    #     #     #     break
+    #     res_table.sort_index(axis=0,  inplace=True)
+    #     res_table.sort_index(axis=1,  inplace=True)
+    #
+    #     print(res_table)
+    #     print(res_table.to_latex())
+    #
+    #     res_table.to_csv(results_dir/"summary.csv")
 
-                res_table.loc[f"{train_dataset_type}_{train_dataset}", test_dataset] = round(score, 3)
-            print(res_table)
-        #
-        #     # if i > 7:
-        #     #     break
-        res_table.sort_index(axis=0,  inplace=True)
-        res_table.sort_index(axis=1,  inplace=True)
-
-        print(res_table)
-        print(res_table.to_latex())
-
-        res_table.to_csv(results_dir/"summary.csv")
-
-
-def mean_std(dir: Path, match: str):
-    results_dirs = [x for x in dir.iterdir() if x.is_dir() and x.match(f"*{match}*")]
-    print (results_dirs)
-    results_files = [x/"summary.csv" for x in results_dirs]
-    print((results_files))
-    summary_df = [pd.read_csv(f, index_col=0) for f in results_files]
-    l = [x.iloc[1,1] for x in summary_df]
-
-    summary_concat = pd.concat(summary_df)
-    by_row_index = summary_concat.groupby(summary_concat.index)
-    summary_means = by_row_index.mean()
-    print (summary_means)
-    summary_std = by_row_index.std(ddof=0)
-    print (summary_std)
-    result = summary_means.copy()
-    for i in range (result.shape[0]):
-        for j in range (result.shape[1]):
-            m = round(summary_means.iloc[i,j], 3)
-            s = round(summary_std.iloc[i,j], 3)
-            result.iloc[i,j] = f"{m} ({s})"
-    result.index = summary_df[0].index
-    print(result)
-    out_file = dir / f"{match}_mean_std.csv"
-    result.to_csv(out_file)
-    print (result.to_latex())
-
-    return
-    train_test_dir_parent = Path("Features/CSV/")
-
-    res_table = pd.DataFrame()
-
-    for results_dir in results_dirs:
-        print(results_dir)
 
 
 def self_size_summary():
@@ -374,32 +415,194 @@ def xgbs_feature_importance(clf: XGBClassifier, X_train: DataFrame):
 #
 
 
-def feature_importance_table(root_dir: Path):
-    result_dirs = [d for d in root_dir.glob("*self*") if d.is_dir()]
-    importance_files = [f for d in result_dirs for f in d.glob("*imp*")]
-    importance_df = [pd.read_csv(f, index_col=0) for f in importance_files]
-    importance_df = [df.sort_index() for df in importance_df]
+# def feature_importance_table(root_dir: Path):
+#     result_dirs = [d for d in root_dir.glob("self*") if d.is_dir()]
+#     for dataset in DATASET_LIST:
+#         importance_files = [f for d in result_dirs for f in d.glob("*imp*")]
+#         importance_df = [pd.read_csv(f, index_col=0) for f in importance_files]
+#         print (len(importance_df))
+#         importance_df = [df.sort_index() for df in importance_df]
+#
+#         join_df = pd.concat(importance_df, axis=1)
+#         r = join_df["rank"]
+#         res = pd.DataFrame(columns=["mean", "std"])
+#         res["mean"] = r.mean(axis=1)
+#         res["std"] = r.std(axis=1)
+#         res.sort_values(by="mean", inplace=True)
+#
+#         print (res.head(20))
 
-    join_df = pd.concat(importance_df, axis=1)
-    r = join_df["rank"]
-    res = pd.DataFrame(columns=["mean", "std"])
-    res["mean"] = r.mean(axis=1)
-    res["std"] = r.std(axis=1)
-    res.sort_values(by="mean", inplace=True)
+def feature_importance_table(NUM_OF_FEATURES:int= 15):
+    output_file = Path("Results") / f"feature_importance_table.csv"
+    output_file25 = Path("Results") / f"feature_importance_table25.csv"
 
-    print (res.head(20))
+    mstd_df_list = []
+    mstd_table = pd.DataFrame()
+    feature_list = []
+    for dataset in DATASET_LIST:
+        print(dataset)
+        mstd_df, m, _ = mean_std(dir=Path("Results"), match="self*", summary_shape=(490, 5),
+                                 summary_file_name=f"feature_importance_{dataset}.csv")
+        mstd_df_list.append(mstd_df.sort_values(by="rank")["rank"].head(NUM_OF_FEATURES).to_latex())
+        m_top = m.sort_values(by="rank").head(NUM_OF_FEATURES)
+        for item in m_top.index:
+            feature_list.append(item)
+
+        mstd_table = pd.concat([mstd_table, m["rank"].rename(dataset)], axis=1, sort=False)
+
+    mstd_table["mean"] = mstd_table.mean(axis=1)
+    mstd_table.sort_values(by="mean", inplace=True, axis=0)
+    mstd_table.to_csv(output_file)
+    mstd_table.head(25).to_csv(output_file25)
+
+    print (40*"*")
+
+    print (mstd_table.astype("int").head(30).to_latex())
+
+    print (40*"*")
+    for i in range(len(mstd_df_list)):
+        print ()
+        print ()
+        print (DATASET_LIST[i])
+        print ()
+        print (mstd_df_list[i])
+
+
+
+    # print(feature_list)
+    # feature_list = list(set(feature_list))
+    # print(feature_list)
+    # mstd_table_top = mstd_table.loc[feature_list, :]
+    #
+
+def feature_importance_correlation():
+    mstd_table = pd.DataFrame()
+    corr_df_dict = {"pearson": pd.DataFrame(),
+                    "spearman": pd.DataFrame()}
+
+    for dataset in DATASET_LIST:
+        print(dataset)
+        mstd_df, m, _ = mean_std(dir=Path("Results"), match="self*", summary_shape=(490, 5),
+                                 summary_file_name=f"feature_importance_{dataset}.csv")
+        mstd_table = pd.concat([mstd_table, m["importance"].rename(dataset)], axis=1, sort=False)
+    mstd_table.to_csv("Results/alldatasets_feature_importance.csv")
+    for d1, d2 in combinations(mstd_table.columns, 2):
+        for corr_method in ["pearson", "spearman"]:
+            x = mstd_table[d1]
+            y = mstd_table[d2]
+            corr_df_dict[corr_method].loc[d1, d2] = x.corr(y, method=corr_method, min_periods=None)
+
+    fig = plt.figure(figsize=(16, 10))
+    for index, (k,v) in enumerate(corr_df_dict.items()):
+        ax = fig.add_subplot(1, 2, index+1, title=k)
+        ax = heatmap(v, cmap='coolwarm', annot=True)
+    plt.savefig("Results/feature_corr.pdf", format="pdf", bbox_inches='tight')
+
+
+
 
 def main():
+    FeatureReader.reader_selection_parameter = "without_hot_encoding"
+
+    ##########################
+    # self summary
+    ##########################
+    # p = Pool(20)
+    # p.map(self_results_summary, range(20))
+
+    #########################
+    # collect the self summary information
+    #########################
+    # mean_std(Path("Results"), "self*", (8, 6))
+    # exit (7)
+
+    ##########################
+    # xgbs measurement
+    ##########################
+    # mean_std(Path("Results"), "self*", (8, 8), summary_file_name="xgbs_measurements.csv")
+    # exit(7)
+    ##########################
+    # compare self to random splits
+    ##########################
+    # p = Pool(10)
+    # self_results_summary_random = partial(self_results_summary, prefix="random_")
+    # p.map(self_results_summary_random, range(5))
+    #
+    # mean_std(Path("Results"), "random_self*", (8, 1))
+    #
+    # exit(7)
+
+    ##########################
+    # Xgboost feature importance
+    ##########################
+
+    # feature_importance_table()
+    feature_importance_correlation()
+    exit(5)
+
+    ##########################
+    # different_results_summary
+    ##########################
+    # p = Pool(20)
+    # p.map(different_results_summary, range(20))
+    # exit(7)
+    _, m, _ = mean_std(dir=Path("Results"), match="self*", summary_shape=(8, 8), summary_file_name="diff_summary.csv")
+    m.to_csv(Path("Results")/"diff_summary_mean.csv")
+
+    exit(7)
+
+
+
+
+    # ['human_dataset1', 'mouse_dataset1', 'celegans_dataset2', 'celegans_dataset1', 'human_dataset2', 'human_dataset3',
+     # 'cattle_dataset1', 'mouse_dataset2']
+    #
     # d = Path("Results")
     # feature_importance_table(d)
-    r = []
-    for i in range (20):
-        r.append(self_results_summary_model(i))
-    for t in r:
-        print (t)
+    mstd_df_list = []
+    mstd_table = pd.DataFrame()
+    NUM_OF_FEATURES = 15
+    feature_list = []
+    for dataset in DATASET_LIST:
+        print (dataset)
+        mstd_df, m, _ = mean_std(dir=Path("Results"), match="self*", summary_shape=(580, 5),
+                    summary_file_name=f"feature_importance_{dataset}.csv")
+        mstd_df_list.append(mstd_df.sort_values(by="rank").head(NUM_OF_FEATURES).to_latex())
+        m_top = m.sort_values(by="rank").head(NUM_OF_FEATURES)
+        for item in m_top.index:
+            feature_list.append(item)
+
+        mstd_table = pd.concat([mstd_table, m["rank"]], axis=1, sort=False)
 
 
-    # mean_std(Path("Results"), "self")
+
+    print (feature_list)
+    feature_list = list(set(feature_list))
+    print (feature_list)
+    print (40*"*")
+    for i in range(len(mstd_df_list)):
+        print ()
+        print ()
+        print (DATASET_LIST[i])
+        print ()
+        print (mstd_df_list[i])
+
+
+
+
+
+
+
+    exit(3)
+
+
+# r = []
+    # for i in range (20):
+    #     r.append(self_results_summary(i))
+    # for t in r:
+    #     print (t)
+
+
 
     # process_list = []
     # for i in range(10):
