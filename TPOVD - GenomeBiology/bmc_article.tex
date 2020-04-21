@@ -849,7 +849,7 @@ Analysis of the results show a variance in the classification performance of eac
 Identifying the miRNA target sites on mRNAs is a fundamental step in understanding miRNA function. miRNA target prediction tools advance this field of research and may be the basis for future applications such as biomarkers and personalized medicine. There were a notable progress in the research of this field due to the novel experimental protocols, availability of accurate data and adoption of advance machine learning methods. Classic machine learning works \todo{ref} and deep learning works \todo{ref} improved the processing pipeline, designed new features and and applied learning methods for accurate prediction. 
 
 
-\subsection*{the data we used}
+\subsection*{The data we used}
 For a machine learning based research, the availability of large and high quality data is crucial for the succession of the research and the ability to identifying important points regarding the object we would like to study.
 
 In the field of miRNA-target prediction, liability of isana: Discussa available high-throughput data: CLIP datasets and CLASH datasets. CLIP - reduces the search space however we still need to predict the interacting pair. CLASH and similar methods give you interacting pairs (chimeras) however the yield of these methods is relatively small. 
@@ -862,57 +862,40 @@ The available datasets are originated from variety of tissues and extracted by d
 The fact that we collected datasets from different sources and different experimental protocols, drove us to develop a processing pipeline which brought all datasets to the same standard data format. The pipeline is a powerful infrastructure which enable us, with a relatively low effort, to add data sources to our analysis. With all datasets with same format, we proceeded with exploration and analysis, in depth comparison between the datasets and performing learning tasks on them.
 
 \subsection*{Thorough analysis of the datasets}
-We found it beneficial to explore and analyze separately and together. We chose  statistical tests and visualisation methods which describe the datasets from different angles.
+We found it beneficial to explore and analyze the datasets separately and together. We chose to perform statistical tests and visualisation methods which describe the datasets from different angles.
 First, we focused on the composition of miRNA sequences and seed families within the datasets. We showed that, for each of the datsets, almost the whole of it comprises by third of the miRNA sequences or seed families.  In addition, different sets of miRNA sequences appear in different datasets, even of the same organism. Furthermore, there is a variance in the frequencies of the miRNA sequences between datasets.
 The importance of the seed region was discussed in previous work... we hypothesise that this fact will impact...
 We continued in examining the interaction seed type according to 2 classes: canonical and non-canonical. Majority of our interactions are non-canonical (48-70\%), which indicates that there are more factors in addition to seed interaction type which affect the possibility to interact. We analyzed the number of base-pairs in each group and found that there is almost no difference: majority of the interactions have intermediate and strong strength. \\
-In the end of our analysis, we perform a 2 dimension visualization of the datasets on the same axes. The visualization reitrate some facts and gave us new insights about the datasets.
+In the end of our analysis, we transform the datasets into 2 dimensions using PCA and visualized the datasets on the same axes with the same two components. This 2 dimensions visualization is a powerful tool which gives us new insights about the datasets. It highlights the exception of \textit{C.elegans} relative to the rest organism: While human, cattle and mouse have points in the whole area, \textit{C.elegans} is concentrated in a narrow part of the rectangle. The exception of 
+\textit{C.elegans} is reflected throughout the research and explained low accurate results when using its datasets with datasets from other organisms.
+In addition, we found that dataset composed of spontaneous chimeras from a mixture of experiments, cover less area than a dataset originating from a dedicated experiment. We hypothesise that the spontaneous chimeras are stronger and therefore appears spontaneously. This fact makes these datasets less diverse as shown by our visualization. Here we would like to discuss 2 issues: (1) The ability to use mixture of spontaneous dataset to predict miRNA-RNA intercations. (2) What is the correct way to make the mixture. We suggest to develop an iterative method which add samples/interaction to the training datasets according to their contribution to the area cover by the datasets. 
 
+\subsection*{Features we used}
+\subsubsection*{we don't use hot encoding}
+Recent works, especially deep learning based works, suggest classifiers based large amount of features including high-level and low-level expert-designed features. In this work, we avoided using raw-level features, including hot encoding of the miRNA sequence, in order to avoid potential information leakage from the training set to the testing set. Combining together the fact that the seed families are not uniformly distributed with the fact that the negative sequence are synthetically generated with no match in the seed region, may cause the machine learning algorithm to focus on the seed and to decode it. It may bring the classifier to overfit rather than making a generalization of the interactions. The classification performance with the raw level feature are higher (supplementary files. \todo {add to supp}).
 
+% (. We supply the information with and without the raw-level features in the supplementary files. \todo {add to supp}
+\subsubsection*{Top important features}
+As said before, the interactions are described by 490 features. We showed that for target prediction task, there is a small group of features which are significantly dominate. We showed that the size of this group is between 5 to 10 features. The dominated features are dataset specific, that is, each classifier corresponding to a dataset, has it own group. Even though, we showed that there is an overlapping between the groups, and the size of the unified group is less than 16. We also showed that half of the top features are related to the seed, which reiterate the significant role of this region in miRNA-target interaction. 
+In this work, we done an preliminary analysis of the top features. Future depth analysis should include performing of advance feature selection techniques. In addition, the analysis of the datasets together should take into account parameters such as the source organism, the examined tissue, the dataset size and etc. 
 
+\subsection*{In dataset analysis}
+\subsubsection*{Training and testing split} 
+The training and testing split has a crucial role when performing the in-dataset analysis. Since there is no standard which of the samples belong to the training and to the testing sets (such as in computer vision datasets for example (MNIST or CIFAR)), we had to split the datasets by ourselves with a close verification that the split action itself doesn't affect the results. We chose to deal with this point in two ways: (1) Generation of 20 sets of stratify train-test splits. The stratify train-test split ensured the same distribution of miRNA sequence in train and the test sets. The generation of 20 sets was done with different random states which eliminate the affection of the split point on the results. (2) Control set: We compared the results with the common pure-random split algorithm. 
+As far as we know, We are the first who does this control. We encourage the community to adopt these method. Moreover, we think that there is a place to publish the split of each dataset to train and test.
 
-
-\susubsection{negative interactions}
- therefore, they represent meaningful interactions. Furthermore, it makes it hard to the classifier to distinguish between the positive and negative examples, and the classifier has to use more features and to learn complex rules.
-
-The miRNA-target interactions, resulting from the processing pipeline, were defined as the positive examples.
-The negative sets have higher percentage of non canonical seeds. This fact is expected since it is hard to achieve, randomly, duplexes with perfect seed.
-
-
-\subsection{in dataset analysis}
-We use a large amount of features in order to represent the interaction including high-level and low-level expert-designed features. We avoid using raw-level features, including hot encoding of the miRNA sequence since the fact that the seed families are not uniformly distributed and the negative sequence were synthetically generated with no match in the seed region, may cause the machine learning algorithm to focus on these features, and to decode the seed family rather than learning general interaction characteristics. We supply performance information with and without the raw-level features in the supplementary files. \todo {add to supp}
-We used a stratify train test splits which ensured the same distribution of miRNA sequence in train and the test sets and checked it with adversarial validation technique. We generated 20 train/test sets using this algorithm with different random states. We compared the results on stratify split sets to the common random split algorithm. We are the first who does this control.
+\subsubsection*{why xGBoost/ Why tree based classifier} 
 we prefer using an explainable classification algorithm rather than a black box algorithm based neural networks, in order to point on the rules and the key features the algorithm have learned. We used the xGBoost algorithm which is an high performance gradient boosting tree algorithm as our main classifier. We showed that it achieved the better performance over the statistical machine algorithm (e.g. SVM, LR) and achieved comparable results with respect to the neural nets algorithm.
-We calculated variety of performance measurements showing the algorithms have no bias/tendency to any kind of classification error. \todo{add a paragraph about the feature importance}
+We calculated variety of performance measurements showing the algorithms have no bias/tendency to any kind of classification error. 
 
-no bias
+\subsection*{Relations between datasets}
+Most of the works dealt with a single human dataset and analyzed it individually, without any usage of information available from other experiments of same or different organisms. Significant contribution of this work is in analysis interaction datasets together. The results are interesting themselves and are useful to explain the results of learning from organism to organism section. Here, we would like to discuss the evolution distance between organisms and the distance between datasets.
 
-
-\subsection{why tree based classifer}
-We prefer a tree based estimator (rather than deep learning estimator) in order to be able to explain the model and its key features.
-
-
-\subsection{features}
-only the top are relevant
-
-
-
-\subsection{relation betwenn datasets}
-In order to describe the connection between the different datasets, we used the Kullback–Leibler divergence measurement which is an asymmetric measurement of how one probability distribution is different from a reference probability distribution. The result of this measurement were consistent with the evolution distance between the organisms appears in the datasets and used to explain the ability to learn form one organism to other.
-Finally, we run a possible variation to learn from one organism and to apply the rules to others. We showed that there is a real potential to apply rules to other organisms. The top three factors that influence on the ability to apply rules are the evolution distance between the organisms, the coherency of the training dataset (whether it come from one or many experiments) and the size of it. We understand that the first factor reflects the similarity between rules of the train and test dataset, while the least two factors reflect the generality and quality of the learning tasks on the train dataset.
-
-
-furthermore, the results much coincides with the divergence results and the evolution distance. Each groups usually better predict its members than organisms from other groups. The training dataset characteristics, such as its size and the biology procedure, found as key factors for the classifier performance: classifiers trained on large datasets predict more accurate;  classifiers trained on spontaneous-mix datasets under perform in predicting other datasets. A reasonable explanation is that small or spontaneous-mix datasets contain low diversity of samples, therefore the classifiers don't have the ability to generalize their learning.
-
-
-
-
-\subsection*{Evolution distance}
-We queried the \href{http://www.timetree.org} in order to understanding the evolutionary distance between two organisms, which is an estimation of the time since the two organisms last shared a common ancestor. As shown in Table \ref{tab:evolutiontime}, c.elegans has the less common with other organisms; The mouse and the human are the closet organisms among our datasets and the cattle is relatively close to them. The results are much coincides with the KL divergence results.
-
+\subsubsection*{Evolution distance}
+We queried the \href{http://www.timetree.org} in order to understanding the evolutionary distance between two organisms, which is an estimation of the time since the two organisms last shared a common ancestor. As shown in Table \ref{tab:evolutiontime}, c.elegans has the less common with other organisms; The mouse and the human are the closet organisms among our datasets and the cattle is relatively close to them. 
 
 \begin{table}[h!]
-\caption{Estimated divergence time {[}MYA{]} . Taken from http://www.timetree.org/}
+\caption{Estimated divergence time {[}MYA{]}. Each cell represents the time since the organisms from the corresponding row and column last shared a common ancestor.}
 \label{tab:evolutiontime}
 \begin{tabular}{|l|l|l|l|}
 \hline
@@ -923,16 +906,26 @@ Bos taurus   &     &            & 797                    \\ \hline
 \end{tabular}
 \end{table}
 
+\subsubsection*{KL divergence}
+We looked for a distance measurement to measure the distance between pairs of datasets. Since each pair of datasets is composed of a training dataset and a testing dataset, we looked for an asymmetric measurement. We chose the Kullback–Leibler divergence measurement which measures how one probability distribution is different from a reference probability distribution. A sanity check for this measurement can be done by comparing it to the evolution distance. It is clear that the results are coincides. The KL divergence add the layer of distance between datasets of the same organism.
+This measurement is done using the seed region distribution function, which again, reiterates its significant to miRNA-target interaction.
+
+\subsection*{Learn from organism to organism}
+We run a simple variation of learing interaction rules from one organism and to apply them to others. We showed that there is a real potential to apply rules to other organisms. The top three factors that influence on the ability to apply rules are the evolution distance between the organisms, the coherency of the training dataset (whether it come from one or many experiments) and the size of it. We understand that the first factor reflects the similarity between rules of the train and test dataset, while the least two factors reflect the generality and quality of the learning tasks on the train dataset.
+Furthermore, the results much coincides with the divergence results and the evolution distance. Each groups usually better predict its members than organisms from other groups. The training dataset characteristics, such as its size and the biology procedure, found as key factors for the classifier performance: classifiers trained on large datasets predict more accurate;  classifiers trained on spontaneous-mix datasets under perform in predicting other datasets. A reasonable explanation is that small or spontaneous-mix datasets contain low diversity of samples, therefore the classifiers don't have the ability to generalize their learning.
 
 
-Most of the works dealt with a single human dataset and analyzed it individually, without any usage of information available from other experiments of same or different organisms. In this study we used machine learning techniques to examine miRNA target interactions across different organisms, both in intra-organism and inter-organism setting.
-
-\subsection{results}
-
-\subsection{future work}
+\subsection*{future work}
 The future potential of this research is high and include the ability to improve the prediction accuracy based on mixture of datasets and rules adopting from variety of organisms and experiments. The information coming form this research may be integrated in a less accuracy biology experiment, such as PAR-CLIP and improve their accuracy. Finally, future research also may enable us to predict, in a reasonable accuracy miRNA-target interaction without high throughput experiment at all.
 
 
+
+
+\subsubsection{negative interactions}
+ therefore, they represent meaningful interactions. Furthermore, it makes it hard to the classifier to distinguish between the positive and negative examples, and the classifier has to use more features and to learn complex rules.
+
+The miRNA-target interactions, resulting from the processing pipeline, were defined as the positive examples.
+The negative sets have higher percentage of non canonical seeds. This fact is expected since it is hard to achieve, randomly, duplexes with perfect seed.
 
 
 \section*{Materials and methods}
@@ -1228,20 +1221,20 @@ option2: We did the evaluation in the following way: We enumerated over all the 
 %%                               %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%
-%% Do not use \listoffigures as most will included as separate files
+% %%
+% %% Do not use \listoffigures as most will included as separate files
 
-\section*{Figures}
-  \begin{figure}[h!]
-  \caption{\csentence{Sample figure title.}
-      A short description of the figure content
-      should go here.}
-      \end{figure}
+% \section*{Figures}
+%   \begin{figure}[h!]
+%   \caption{\csentence{Sample figure title.}
+%       A short description of the figure content
+%       should go here.}
+%       \end{figure}
 
-\begin{figure}[h!]
-  \caption{\csentence{Sample figure title.}
-      Figure legend text.}
-      \end{figure}
+% \begin{figure}[h!]
+%   \caption{\csentence{Sample figure title.}
+%       Figure legend text.}
+%       \end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%                               %%
@@ -1249,19 +1242,19 @@ option2: We did the evaluation in the following way: We enumerated over all the 
 %%                               %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Use of \listoftables is discouraged.
-%%
-\section*{Tables}
-\begin{table}[h!]
-\caption{Sample table title. This is where the description of the table should go.}
-      \begin{tabular}{cccc}
-        \hline
-           & B1  &B2   & B3\\ \hline
-        A1 & 0.1 & 0.2 & 0.3\\
-        A2 & ... & ..  & .\\
-        A3 & ..  & .   & .\\ \hline
-      \end{tabular}
-\end{table}
+% %% Use of \listoftables is discouraged.
+% %%
+% \section*{Tables}
+% \begin{table}[h!]
+% \caption{Sample table title. This is where the description of the table should go.}
+%       \begin{tabular}{cccc}
+%         \hline
+%           & B1  &B2   & B3\\ \hline
+%         A1 & 0.1 & 0.2 & 0.3\\
+%         A2 & ... & ..  & .\\
+%         A3 & ..  & .   & .\\ \hline
+%       \end{tabular}
+% \end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%                               %%
@@ -1274,10 +1267,10 @@ option2: We did the evaluation in the following way: We enumerated over all the 
     Figures and tables. PDF format
 
   \subsection*{Additional file 2}  \label{add:feature importance}
-    feature_importance.xlsx
+    feature\_importance.xlsx
  
  \subsection*{Additional file 3}  \label{add:hyperoptparams}
-   grid_search_params.yaml
+   grid\_search\_params.yaml
 
 
 
