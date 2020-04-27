@@ -365,7 +365,8 @@ Our results further suggest that there is a need to develop methodology to corre
 \section*{Results}
 \subsection*{Dataset processing}
 Eight miRNA-target chimera datasets were generated so far for human, mouse, the nematode \textit{Caenorhabditis elegans (C.elegans)} and cattle \textit{Bos taurus}. Table \ref{tbl:dataset_description} provides the details for each dataset, including the cell type or developmental stage that was examined and the experimental protocol that was used. A multi-step processing pipeline was applied to (1) retrieve all the needed information about the interactions, (2) filter out non 3'UTR interactions, (3) generate miRNA-target duplexes, and (4) keep only the interactions with canonical or non-canonical seeds. The information regarding each step of the pipeline is shown in Table \ref{tal:pipeline_summary}. The outputs of the pipeline are 8 datasets of valid miRNA-target interactions. We use these datasets as input for machine learning tasks. Therefore, we complemented the datasets with synthetically-generated negative interactions as described in methods. We extracted 490 features from each interaction, representing proprieties of the interaction's duplex, interaction site and the site flanking region within the 3'UTR (see methods: \nameref{methods_features}).
-Our research is done on datasets with different sizes. There is a difference of two orders of magnitude between the smallest and the largest dataset. We later we show how the datasets' size affect the results of the learning tasks.\\
+Our research is done on datasets with variable sizes. There is a difference of two orders of magnitude between the smallest and the largest dataset.
+% We later we show how the datasets' size affect the results of the learning tasks.\\
 % We designate the interactions obtained from the original datasets as positive interactions. 
 
 \begin{table}[h!]
@@ -497,7 +498,10 @@ No. of seed families      & 119                                                 
 
 
 \subsubsection*{Seed types and interaction strength}
-We classified the interactions (i.e., the corresponding duplexes formed by the miRNA and the target site) in the datasets based on two parameters: seed type (canonical or non-canonical, see methods) and interaction strength (number of base-pairs within the duplex: weak with less than 11bp, intermediate with 11-16 base-pairs and strong with more than 16 base-pairs). We defined 6 groups (all combinations of seed type and duplex strength) and assigned each interaction to the appropriate group (Figure \ref{fig:seed_type_pos}). As can been seen in the figure, the datasets are rich and diverse, and comprise all the combinations of seed type and duplex strength. In particular, we would like to enlight 2 points: (1) In terms of seed type, majority of the interactions are non-canonical (48-70\%). (2) For both groups of seed types,  majority of the interactions have intermediate and strong strength, while the weak interactions comprise only a small portion of the datasets. 
+We classified the interactions (i.e., the corresponding duplexes formed by the miRNA and the target site) in the datasets based on two parameters: seed type (canonical or non-canonical, see methods) and interaction strength (number of base-pairs within the duplex: weak with less than 11bp, intermediate with 11-16 base-pairs and strong with more than 16 base-pairs). We defined 6 groups (all combinations of seed type and duplex strength) and assigned each interaction to the appropriate group (Figure \ref{fig:seed_type_pos}). As can been seen in the figure, the datasets are rich and diverse, and comprise all the combinations of seed type and duplex strength.
+% In particular, we would like to enlight 2 points: 
+Nevertheless, two observation stand out: 
+(1) In terms of seed type, majority of the interactions are non-canonical (48-70\%). (2) For both groups of seed types,  majority of the interactions have intermediate and strong strength, while the weak interactions comprise only a small portion of the datasets. 
 Similar analysis for the negative interactions is shown in \nameref{add:figs_tbls}, figure 1.
 
 \begin{figure}[h!]
@@ -556,11 +560,11 @@ In this section, we evaluated the performance of machine-learning based binary c
 We first conducted a set of experiments with different types of machine learning classifiers. Second, we did an in-depth analysis of the best preforming classifier including performance measurements and estimation of the top important features.
 
 \subsubsection*{Evaluation of different machine learning methods} \label{sec:evaluation_different_ML}
-We tested the performance of machine-learning based classifiers to correctly classify miRNA-target interactions. We trained 6 widely used classifiers on the training set, and measured their performance in classification of the testing set as shown in Table \ref{tab:self_summary}. xGBoost classifier achieved the best results across all datasets. 
-Previous published machine learning based approaches mainly focused on the human dataset designated as h1 in table \ref{tbl:dataset_description}. We compared the results of our classifiers with previous reports and saw that the results are comparable in the achieved accuracy (\nameref{add:figs_tbls}, table 1). 
+We tested the performance of machine-learning based classifiers to correctly classify positive and negative miRNA-target interactions. We trained 6 widely used classifiers on the training set, and measured their performance in classification of the testing set as shown in Table \ref{tab:self_summary}. xGBoost classifier achieved the best results across all datasets. 
+Previous published machine learning based approaches mainly focused on the human dataset designated as \textit{h1} in table \ref{tbl:dataset_description}. We compared the results of our classifiers with previous reports and saw that the results are comparable in the achieved accuracy (\nameref{add:figs_tbls}, table 1). 
 
 \begin{table}[h!]
-\caption{In dataset prediction: accuracy performance of different machine learning methods. The cells contain the average and the STD (in brackets) results acquired from 20 models trained and evaluated on different training and testing dataset splits.}
+\caption{In dataset prediction: classification accuracy of different machine learning methods. The cells contain the average and the STD (in brackets) results acquired from 20 models trained and evaluated on different training and testing dataset splits.}
 \label{tab:self_summary}
 \begin{tabular}{|l|l|l|l|l|l|l|}
 \hline
@@ -605,13 +609,13 @@ m2                                & \begin{tabular}[c]{@{}l@{}}0.900 \\ (0.004)\
 
 
 \subsubsection*{In-depth analysis of the xGBoost performance}
-We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 8 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR), false negatives (FNR) and false discoveries (FDR) (Table \ref{tab:measurementinfo}). We choose these 8 measurements in order to verify that the classifier is balanced and has no bias to one class or to one type of error. As can been seen from the table, both the rate of true detection (TPR and TNR) and the rate of miss-detection (FPR and FNR) are in the same range, indicating that all the 8 classifiers are balanced.
+We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 8 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR), false negatives (FNR) and false discoveries (FDR) (Table \ref{tab:measurementinfo}). We choose these 8 measurements in order to verify that the classifier is balanced and has no bias to one class or to one type of error. As can been seen from the table, both the rate of true detection (TPR and TNR) and the rate of miss-detection (FPR and FNR) are in the same range, indicating that all the 8 classifiers (corresponding to each dataset) are balanced.
 
 
 % both the rate true detection (TPR and TNR) f the true positives and negatives, and the rate of false positives and negatives are in the same range, indicating that all the 8 classifiers are balanced.
 
 \begin{table}[h!]
-\caption{xGBoost performance measurements. }
+\caption{xGBoost performance measurements. The cells contain the average and the STD (in brackets) results acquired from 20 models trained and evaluated on different training and testing dataset splits.}
 \label{tab:measurementinfo}
 \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
 \hline
@@ -691,8 +695,8 @@ In the above analysis, the splitting of the dataset into the training and testin
 % \end{table}
 
 \subsubsection*{Top important features of each dataset}
-We use the actual number of features in order to describe the interactions. Here, we would like to analyze which are the top important features of each dataset, what are the relative score between them and the degree of overlap of the top features between different datasets. xGBoost classifier reports a list of 5 feature importance metrics: weight, gain, cover, total gain and total cover. We extracted the 5 metrics for all 20 train-test splits of each dataset and calculated their mean and standard deviation (see \nameref{add:feature importance}).
-For depth analysis, we used the gain metric which reflects, for each feature, its contribution to the model. For each dataset, we sorted in descending order, the average features' gain score over all 20 runs, and plot the curves of all the datasets together.
+We use 490 features in order to describe the interactions. Here, we would like to analyze which are the top important features of each dataset, what are the relative score between them and the degree of overlap of the top features between different datasets. xGBoost classifier reports a list of 5 feature importance metrics: weight, gain, cover, total gain and total cover. We extracted the 5 metrics for all 20 train-test splits of each dataset and calculated their mean and standard deviation (see \nameref{add:feature importance}).
+For depth analysis, we used the gain metric which reflects, for each feature, its contribution to the model. For each dataset, we sorted in descending order, the average features' gain score over all 20 runs, and plotted the curves of all the datasets together.
 % For each dataset, we sorted in descending order,the average feature's gain score over the 20 runs,  features from the top important feature and plot them together.
 Figure \ref{fig:feature_importance}a reveals that the gain score is decaying very fast. The 6 top features are significantly stronger relative to the rest (Figure \ref{fig:feature_importance} b). We extracted the top 6 features from each dataset into a unified list. The list resulted in a total of 16 features (out of the maximum length of 48),  indicating that there are many shared features among the datasets. We next extracted the gain values of these 16 features from all the datasets and normalized them to the range of (0, 100). We then ordered the features by their mean gain across all datasets (Table \ref{tab:feature_importance}). Notably, features related to the seed region (marked as bold in the table), comprise half of the features in the table. This emphasize the role of the seed region in the formation of miRNA-mRNA interactions. % We marked features related to the seed region, which are half of the feature in the table. 
 
@@ -805,7 +809,7 @@ Energy\_MEF\_local\_target\_normalized            & 8            & 11           
 
 % \subsection*{Target prediction between datasets}
 \subsection*{Between datasets analysis}
-In the previous section, we trained and optimized a dedicated classifier for each dataset, evaluated its performance and analyzed the feature importance.
+In the previous section, we trained and optimized a dedicated classifier for each dataset, evaluated its performance and analyzed feature importance.
 % understood which are the most important features.  
 In this section, we elaborate the scope of the research through analysing of relations between datasets. 
 First, we used a statistical measure to calculate the distance between the datasets. Second, we evaluated the performance of each classifier in classifying the interactions in the other datasets. 
@@ -817,7 +821,7 @@ We chose the asymmetric measure Kullback–Leibler (KL) divergence which measure
 
 % We hypothesized that the datasets' characteristics and the level of similarity between pairs of datasets influences the classification performance of a dataset based on a classifier trained on a different dataset. Since classification is a directed task, we chose the Kullback–Leibler (KL) divergence which is an asymmetric measure. 
 % The KL divergence is a measure of how one probability distribution is different from a second, reference probability distribution. We used the divergence to measure the pairwise distances between every two datasets based on their miRNA seed family distribution.
-Figure \ref{fig:divergence} shows the divergence between every two dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that as expected due to the distance between the organisms, the divergence between \textit{C.elegans }and other datasets is significantly higher than the divergence between other pairs.
+Figure \ref{fig:divergence} shows the divergence between every two dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that as expected due to the distance between the organisms, the divergence between \textit{C.elegans } and other datasets is significantly higher than the divergence between other pairs.
 
 % In statistics, the Kullback–Leibler (KL) divergence is a measure of how one probability distribution is different from a second, reference probability distribution. The KL divergence is a positive, asymmetric measure that is equal to zero if and only if the distributions coincides. Here, we use the divergence to measure the distance between the miRNA seed family distribution of the training sets and the miRNA seed family distribution of the datasets it intend to predict (the testing set). 
 % Figure \ref{fig:divergence} shows the divergence between all dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that the divergence between c.elegans and other datasets is significantly higher than the divergence between other pairs.
@@ -846,6 +850,7 @@ Analysis of the results show a variance in the classification performance of eac
 
 
 \section*{Discussion}
+\subsection*{General paragraph about studying miRNA targeting}
 Identifying the miRNA target sites on mRNAs is a fundamental step in understanding miRNA function. miRNA target prediction tools advance this field of research and may be the basis for future applications such as biomarkers and personalized medicine. There were a notable progress in the research of this field due to the novel experimental protocols, availability of accurate data and adoption of advance machine learning methods. Classic machine learning works \todo{ref} and deep learning works \todo{ref} improved the processing pipeline, designed new features and and applied learning methods for accurate prediction. 
 
 
@@ -917,6 +922,7 @@ Furthermore, the results much coincides with the divergence results and the evol
 
 \subsection*{future work}
 The future potential of this research is high and include the ability to improve the prediction accuracy based on mixture of datasets and rules adopting from variety of organisms and experiments. The information coming form this research may be integrated in a less accuracy biology experiment, such as PAR-CLIP and improve their accuracy. Finally, future research also may enable us to predict, in a reasonable accuracy miRNA-target interaction without high throughput experiment at all.
+we suggest to examine different methods for generation the negative datasets....
 
 
 
@@ -979,7 +985,8 @@ The seed distribution calculation was done by first clustering miRNA sequences b
 
 \subsection*{Features} \label{methods_features}
 To represent miRNA-target interactions we used 490 expert-designed features, that are classified into two categories (high-level and low-level) and five subcategories (Table \ref{tbl:feature_category}). Four of the categories (free Energy, mRNA composition, miRNA pairing and site accessibility) were adopted from \cite{wen2018deepmirtar} while the seed features group were designed in this work. For full description of the features, see Supplementary Material. \todo{add to supp} 
-\\ The free energy category includes 7 features representing the minimum free energy of the miRNA alone and the miRNA duplex at different regions including site, seed, and flanking region. 
+\\ The free energy category includes 7 features representing the minimum free energy of the miRNA alone and the miRNA duplex at different regions including site, seed, and mRNA flanking region.
+
 \\ The mRNA composition consists of 62 features which supply information about the target mRNA: the distance of the site from the edges of the 3'UTR (2 features), the the mRNA sequence composition within the site region (20 features) and the mRNA sequence composition of the up and down flanking region (20 features each). 
 \\ The miRNA pairing consists of 38 features which describe the duplex itself, including information about base-pairs in each location of the miRNA (20 features), and total count of base-pairs, mismatches and gaps in the site region (18 features).
 \\ The site accessibility features give information about the unpaired probabilities of each base to a stretch of 10 consecutive nucleotides. 
@@ -1026,7 +1033,8 @@ The dimensionality reduction was done on the positive experimental interactions 
 \subsection*{Splitting of the data into training and testing sets} \label{method:split}
 Correct determination of the training and testing sets is crucial for getting reliable results. The testing set has to be large enough to yield statistically significant result, it must not contain any sample from the training set and it has to represent the dataset as a whole. 
 To address these rules, we implemented a stratified random split algorithm. The algorithm ensures that each miRNA appears in the training and the testing sets at the same proportion as in the original dataset. For example, if a specific miRNA constitutes 10\% of the interactions in the original dataset, the algorithm ensures that its proportion in both the training and the testing sets is 10\%. Within the stratified split, the assignment of the interactions to training (80\%) and testing (20\%) sets is done randomly according to a random state. For miRNAs with a single interaction, we assigned the interaction to the testing set.
-We repeated this process 20 times with different random states, yielding 20 training sets and 20 testing sets for each dataset.
+We repeated this process 20 times with different random states, yielding 20 training sets and 20 testing sets for each dataset. This is needed to ensure that the split does not affect the results.
+
 % In order to be able to calculate the mean and the standard deviation of the results, 
 
 In addition, for each dataset, we generated five control sets by a fully random algorithm, which does not take into account miRNA distributions. We used these sets as a reference baseline, to assess the influence of the stratified split algorithm on the results.
@@ -1061,7 +1069,7 @@ optimization \: tasks & = #classifiers * #datasets * \left (stratified\: splits 
  & = 1200
 \end{split}
 \end{equation}
-First, we searched for the models' optimal hyper parameters. We performed an exhaustive search using sklearn GridSearchCV, using 4-fold cross validation, optimized for accuracy performance. Second, we explored the exhaustive search results and identified the set of parameters which achieved the best accuracy results. The classifier corresponding to this set of parameters was saved and used for evaluating the accuracy of classification on the testing set. The parameters values for the hyper parameter optimization are provided in \nameref{add:hyperoptparams}. We provided the mean and the STD for the 20 stratified splits and for the 5 control splits.
+First, we searched for the models' optimal hyper parameters. We performed an exhaustive search using sklearn GridSearchCV, using 4-fold cross validation, optimized for accuracy performance. Second, we explored the exhaustive search results and identified the set of parameters which achieved the best accuracy results. The classifier corresponding to this set of parameters was saved and used for evaluating the accuracy of classification on the testing set. The parameters values for the hyper parameter optimization are provided in \nameref{add:hyperoptparams}. We provided the accuracy mean and the STD for the 20 stratified splits and for the 5 control splits.
 
 % XXX - these results are not all train splits but just the stratified and the control results are somewhere else - fix accordingly From here you can continue straight to the XGBoost
 
@@ -1080,7 +1088,7 @@ First, we searched for the models' optimal hyper parameters. We performed an exh
 % Third, we loaded the 48 best classifiers and used them to evaluate the accuracy results on the testing set. The results shown in Table \ref{tab:self_summary} are the mean and the STD of all the train-test splits.
 
 
-We continued with the xGBoost classifier for calculating detailed performance measurements and for analysis of the feature importance. We calculated 8 widely used performance metrics including accuracy, sensitivity, specificity and precision (Table \ref{tab:measurementinfo}). As before, the mean and the STD were calculated on all the train-test splits.
+We continued with the xGBoost classifier for calculating detailed performance measurements and for analysis of the feature importance. We calculated 8 widely used performance metrics including accuracy, sensitivity, specificity and precision (Table \ref{tab:measurementinfo}). As before, the mean and the STD for each measure were calculated on all the training-testing splits.
 
 % The xGBoost classifier provides a scalable, portable and distributed gradient boosting decision trees algorithm. We selected the xGBoost best classifiers to calculate 8 widely used performance metrics including accuracy, sensitivity, specificity and precision (Table \ref{tab:measurementinfo}). The mean and the std of these metrics were calculated on the stratified testing sets using sklearn functions.
 
@@ -1122,8 +1130,8 @@ In this section, we evaluated the performance of a classifier to classify intera
 
 % option1: We did the evaluation in the following way: We enumerated over all the 56 possible pairs of training and testing datasets. We loaded the xGBoost classifier with the optimal parameters for the training dataset as found in section \nameref{method_ml_methods}. Then, we loaded the entire testing set (without spliting it) and evaluated the classifier performance. 
 
-We did the evaluation in the following way: We enumerated over all the 56 possible pairs of training and testing datasets: train\textsubscript{i}, test\textsubscript{j}. We then loaded each of the 20 xGBoost classifiers (corresponding to 20 splits) generated for dataset i in section \nameref{method_ml_methods} and evaluated their performance on the entire dataset j (without splitting it). We then computed the mean and the STD of their results.
-We loaded the xGBoost classifier with the optimal parameters for train\textsubscript{i} as found in section \nameref{method_ml_methods}. Then, we loaded the entire test\textsubscript{j} dataset (without spliting it) and evaluated the accuracy of the classifier accuracy. In cases where i=j,  we reported the result found in previous section.
+We did the evaluation in the following way: We enumerated over all the 56 possible pairs of training and testing datasets: train\textsubscript{i}, test\textsubscript{j}. We then loaded each of the 20 xGBoost classifiers (corresponding to 20 splits) generated for dataset i in section \nameref{method_ml_methods} and evaluated their performance on the entire dataset j (without splitting it). In cases where i=j,  we reported the result found in previous section. We then computed the mean and the STD of their accuracy results.
+
 
 
 
