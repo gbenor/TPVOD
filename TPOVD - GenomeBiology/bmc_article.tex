@@ -497,15 +497,15 @@ No. of seed families      & 119                                                 
       \end{figure}
 
 
-\subsubsection*{Seed types and interaction strength}
-We classified the interactions (i.e., the corresponding duplexes formed by the miRNA and the target site) in the datasets based on two parameters: seed type (canonical or non-canonical, see methods) and interaction strength (number of base-pairs within the duplex: weak with less than 11bp, intermediate with 11-16 base-pairs and strong with more than 16 base-pairs). We defined 6 groups (all combinations of seed type and duplex strength) and assigned each interaction to the appropriate group (Figure \ref{fig:seed_type_pos}). As can been seen in the figure, the datasets are rich and diverse, and comprise all the combinations of seed type and duplex strength.
+\subsubsection*{Seed types and interaction density}
+We classified the interactions (i.e., the corresponding duplexes formed by the miRNA and the target site) in the datasets based on two parameters: seed type (canonical or non-canonical, see methods) and base-pair density (number of base-pairs within the duplex: low with less than 11bp, medium with 11-16 base-pairs and high with more than 16 base-pairs). We defined 6 groups (all combinations of seed type and base-pair density) and assigned each interaction to the appropriate group (Figure \ref{fig:seed_type_pos}). As can been seen in the figure, the datasets are rich and diverse, and comprise all the combinations of seed type and base-pair density.
 % In particular, we would like to enlight 2 points: 
 Nevertheless, two observation stand out: 
-(1) In terms of seed type, majority of the interactions are non-canonical (48-70\%). (2) For both groups of seed types,  majority of the interactions have intermediate and strong strength, while the weak interactions comprise only a small portion of the datasets. 
+(1) In terms of seed type, majority of the interactions are non-canonical (48-70\%). (2) For both groups of seed types,  majority of the interactions have medium and high base-pair density, while the low base-pair density interactions comprise only a small portion of the datasets. 
 Similar analysis for the negative interactions is shown in \nameref{add:figs_tbls}, figure 1.
 
 \begin{figure}[h!]
-  \caption{\csentence{Types and characteristics of positive miRNA-target duplexes.} The percentage of miRNA-target duplexes shown in 6 groups according to the seed type [canonical and non-canonical] and to the interaction strength [weak: less than 11bp, intermediate: 11-16bp and strong: more than 16bp].}
+  \caption{\csentence{Types and characteristics of positive miRNA-target duplexes.} The percentage of miRNA-target duplexes shown in 6 groups according to the seed type [canonical and non-canonical] and to the base-pair density [low: less than 11bp, medium: 11-16bp and high: more than 16bp].}
     \includegraphics[width = 1\textwidth]{Results/seed_type_positive2.pdf}
       \label{fig:seed_type_pos}
       \end{figure}
@@ -609,25 +609,37 @@ m2                                & \begin{tabular}[c]{@{}l@{}}0.900 \\ (0.004)\
 
 
 \subsubsection*{In-depth analysis of the xGBoost performance}
-We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 8 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR), false negatives (FNR) and false discoveries (FDR) (Table \ref{tab:measurementinfo}). We choose these 8 measurements in order to verify that the classifier is balanced and has no bias to one class or to one type of error. As can been seen from the table, both the rate of true detection (TPR and TNR) and the rate of miss-detection (FPR and FNR) are in the same range, indicating that all the 8 classifiers (corresponding to each dataset) are balanced.
+% We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 8 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR), false negatives (FNR) and false discoveries (FDR) (Table \ref{tab:measurementinfo}). 
+% For better performance, TPR, TNR should be high (close to 1) and FNR, FPR should be low (close to 0). Moreover, TPR is almost equal to TNR (same rate of true detection) and FPR is almost equal to FNR (same rate of miss-detection), which indicate that all the 8 classifiers (corresponding to each dataset) are balanced.
+We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 7 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR) and false negatives (FNR) (Table \ref{tab:measurementinfo}). 
+For better performance, TPR and TNR should be high (close to 1) and FNR and FPR should be low (close to 0). Moreover, TPR is almost equal to TNR (same rate of true detection) and FPR is almost equal to FNR (same rate of miss-detection), which indicate that all  8 classifiers (corresponding to each dataset) are balanced.
+PPV and  NPV describe the precision of the classifier, which is the proportion of the true predictions from all the classifier predictions. The ideal value of these measures is 1 (100\%), and the worst possible value is zero. For all datasets, the classifiers achieve rate of 0.83-0.95 which indicates that the classifiers are precise.
 
 
-% both the rate true detection (TPR and TNR) f the true positives and negatives, and the rate of false positives and negatives are in the same range, indicating that all the 8 classifiers are balanced.
 
 \begin{table}[h!]
 \caption{xGBoost performance measurements. The cells contain the average and the STD (in brackets) results acquired from 20 models trained and evaluated on different training and testing dataset splits.}
 \label{tab:measurementinfo}
 \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
 \hline
-Dataset & TPR                                                    & TNR                                                   & PPV                                                      & NPV                                                      & FPR                                                      & FNR                                                      & FDR                                                      & ACC                                                      \\ \hline
-ca1     & \begin{tabular}[c]{@{}l@{}}0.834\\ (0.014)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.862\\ (0.024)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.866\\ (0.027)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.828\\ (0.017)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.138\\ (0.024)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.165 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.134 \\ (0.027)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.847 \\ (0.015)\end{tabular} \\ \hline
-ce1     & \begin{tabular}[c]{@{}l@{}}0.884 \\ (0.02)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.899 \\ (0.019)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.901 \\ (0.02)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.881 \\ (0.023)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.101 \\ (0.019)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.116 \\ (0.02)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.099 \\ (0.02)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.891 \\ (0.016)\end{tabular} \\ \hline
-ce2     & \begin{tabular}[c]{@{}l@{}}0.890\\ (0.018)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.889 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.889 \\ (0.015)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.89 \\ (0.019)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.111 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.110 \\ (0.018)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.111 \\ (0.015)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.889\\ (0.014)\end{tabular}  \\ \hline
-h1      & \begin{tabular}[c]{@{}l@{}}0.823 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.849 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.854 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.816 \\ (0.015)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.151 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.177 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.146 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.835 \\ (0.007)\end{tabular} \\ \hline
-h2      & \begin{tabular}[c]{@{}l@{}}0.816 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.833 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.838 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.811 \\ (0.01)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.167 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.184 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.162 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.824 \\ (0.007)\end{tabular} \\ \hline
-h3      & \begin{tabular}[c]{@{}l@{}}0.886 \\ (0.012)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.924 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.928 \\ (0.012)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.881 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.076 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.114 \\ (0.012)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.072 \\ (0.012)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.904 \\ (0.007)\end{tabular} \\ \hline
-m1      & \begin{tabular}[c]{@{}l@{}}0.932 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.943 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.943 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.931 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.057 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.068 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.057 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.937 \\ (0.002)\end{tabular} \\ \hline
-m2      & \begin{tabular}[c]{@{}l@{}}0.891 \\ (0.003)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.909 \\ (0.005)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.911 \\ (0.006)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.888 \\ (0.003)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.091 \\ (0.005)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.109 \\ (0.003)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.089 \\ (0.006)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.900 \\ (0.004)\end{tabular} \\ \hline
+Dataset & TPR                                                    & TNR                                                   & PPV                                                      & NPV                                                      & FPR                                                      & FNR                                                     % & FDR                                         
+& ACC                                                      \\ \hline
+ca1     & \begin{tabular}[c]{@{}l@{}}0.834\\ (0.014)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.862\\ (0.024)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.866\\ (0.027)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.828\\ (0.017)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.138\\ (0.024)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.165 \\ (0.014)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.134 \\ (0.027)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.847 \\ (0.015)\end{tabular} \\ \hline
+ce1     & \begin{tabular}[c]{@{}l@{}}0.884 \\ (0.02)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.899 \\ (0.019)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.901 \\ (0.02)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.881 \\ (0.023)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.101 \\ (0.019)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.116 \\ (0.02)\end{tabular}  & %\begin{tabular}[c]{@{}l@{}}0.099 \\ (0.02)\end{tabular}  &
+\begin{tabular}[c]{@{}l@{}}0.891 \\ (0.016)\end{tabular} \\ \hline
+ce2     & \begin{tabular}[c]{@{}l@{}}0.890\\ (0.018)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.889 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.889 \\ (0.015)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.89 \\ (0.019)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.111 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.110 \\ (0.018)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.111 \\ (0.015)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.889\\ (0.014)\end{tabular}  \\ \hline
+h1      & \begin{tabular}[c]{@{}l@{}}0.823 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.849 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.854 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.816 \\ (0.015)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.151 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.177 \\ (0.011)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.146 \\ (0.011)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.835 \\ (0.007)\end{tabular} \\ \hline
+h2      & \begin{tabular}[c]{@{}l@{}}0.816 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.833 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.838 \\ (0.009)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.811 \\ (0.01)\end{tabular}  & \begin{tabular}[c]{@{}l@{}}0.167 \\ (0.008)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.184 \\ (0.008)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.162 \\ (0.009)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.824 \\ (0.007)\end{tabular} \\ \hline
+h3      & \begin{tabular}[c]{@{}l@{}}0.886 \\ (0.012)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.924 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.928 \\ (0.012)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.881 \\ (0.014)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.076 \\ (0.011)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.114 \\ (0.012)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.072 \\ (0.012)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.904 \\ (0.007)\end{tabular} \\ \hline
+m1      & \begin{tabular}[c]{@{}l@{}}0.932 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.943 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.943 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.931 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.057 \\ (0.004)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.068 \\ (0.004)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.057 \\ (0.004)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.937 \\ (0.002)\end{tabular} \\ \hline
+m2      & \begin{tabular}[c]{@{}l@{}}0.891 \\ (0.003)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.909 \\ (0.005)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.911 \\ (0.006)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.888 \\ (0.003)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.091 \\ (0.005)\end{tabular} & \begin{tabular}[c]{@{}l@{}}0.109 \\ (0.003)\end{tabular} & %\begin{tabular}[c]{@{}l@{}}0.089 \\ (0.006)\end{tabular} &
+\begin{tabular}[c]{@{}l@{}}0.900 \\ (0.004)\end{tabular} \\ \hline
 \end{tabular}
 \begin{tablenotes}\footnotesize
 \item[1] TPR: true positive rate (Sensitivity)
@@ -636,10 +648,10 @@ m2      & \begin{tabular}[c]{@{}l@{}}0.891 \\ (0.003)\end{tabular} & \begin{tabu
 \item[4] NPV: Negative predictive value
 \item[5] FPR: false positive rate (Fall out)
 \item[6] FNR: False negative rate
-\item[7] FDR: False discovery rate
-\item[8] ACC: Overall accuracy
+%\item[7] FDR: False discovery rate
+%\item[8] ACC: Overall accuracy
+\item[7] ACC: Overall accuracy
 \end{tablenotes}
-
 \end{table}
 
 % \textit{
@@ -697,74 +709,11 @@ In the above analysis, the splitting of the dataset into the training and testin
 \subsubsection*{Top important features of each dataset}
 We use 490 features in order to describe the interactions. Here, we would like to analyze which are the top important features of each dataset, what are the relative score between them and the degree of overlap of the top features between different datasets. xGBoost classifier reports a list of 5 feature importance metrics: weight, gain, cover, total gain and total cover. We extracted the 5 metrics for all 20 train-test splits of each dataset and calculated their mean and standard deviation (see \nameref{add:feature importance}).
 For depth analysis, we used the gain metric which reflects, for each feature, its contribution to the model. For each dataset, we sorted in descending order, the average features' gain score over all 20 runs, and plotted the curves of all the datasets together.
-% For each dataset, we sorted in descending order,the average feature's gain score over the 20 runs,  features from the top important feature and plot them together.
-Figure \ref{fig:feature_importance}a reveals that the gain score is decaying very fast. The 6 top features are significantly stronger relative to the rest (Figure \ref{fig:feature_importance} b). We extracted the top 6 features from each dataset into a unified list. The list resulted in a total of 16 features (out of the maximum length of 48),  indicating that there are many shared features among the datasets. We next extracted the gain values of these 16 features from all the datasets and normalized them to the range of (0, 100). We then ordered the features by their mean gain across all datasets (Table \ref{tab:feature_importance}). Notably, features related to the seed region (marked as bold in the table), comprise half of the features in the table. This emphasize the role of the seed region in the formation of miRNA-mRNA interactions. % We marked features related to the seed region, which are half of the feature in the table. 
+Figure \ref{fig:feature_importance}a reveals that the gain score is decaying very fast. The 6 top features are significantly stronger relative to the rest (Figure \ref{fig:feature_importance} b). We extracted the top 6 features from each dataset, along with their normalized gain score (see methods), into a unified list. The list resulted in a total of 16 features (out of the maximum length of 48), indicating that there are many shared features among the datasets. Table \ref{tab:feature_importance} shows the features ordered by their mean gain across all datasets.
+Notably, features related to the seed region (marked as bold in the table), comprise half of the features in the table. This emphasize the role of the seed region in the formation of miRNA-mRNA interactions.
 
-The described analysis is limited due to the variance of the gain between different splits of the same dataset. Even though, it enlights the common features across datsets and the importance of the seed features.
-
-
-
-% \begin{table}[h!]
-% \caption{Feature importance}
-% \label{tab:featureimportance}
-% \begin{tabular}{|l|l|l|l|l|l|l|l|l|l|}
-% \hline
-%                                                                 & ca1   & ce1    & ce2    & h1     & h2     & h3     & m1     & m2    & mean               \\ \hline
-% {\color[HTML]{FE0000} miRNAPairingCount\_Seed\_GU}              & 0.15  & 2.55   & 0.6    & 2.45   & 4.4    & 0.0    & 12.9   & 0.4   & 2.93125            \\ \hline
-% {\color[HTML]{3166FF} miRNAMatchPosition\_1}                    & 1.05  & 3.1    & 4.2    & 0.75   & 9.35   & 4.05   & 15.45  & 0.6   & 4.81875 \\ \hline
-% {\color[HTML]{FE0000}miRNAPairingCount\_Total\_GU}                                    & 2.45  & 43.45  & 7.1    & 0.25   & 22.7   & 1.25   & 5.9    & 4.6   & 10.9625            \\ \hline
-% {\color[HTML]{32CB00} Energy\_MEF\_Duplex}                      & 6.9   & 11.65  & 61.85  & 20.75  & 0.2    & 8.65   & 5.85   & 2.0   & 14.73125 \\ \hline
-% {\color[HTML]{643403} MRNA\_Target\_G\_comp}                    & 11.85 & 4.2    & 95.2   & 14.2   & 4.05   & 4.05   & 0.7    & 3.1   & 17.16875           \\ \hline
-% {\color[HTML]{38FFF8} Seed\_match\_compact\_interactions\_2\_7} & 2.6   & 41.45  & 0.4    & 18.7   & 28.5   & 3.3    & 76.85  & 6.9   & 22.3375 \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_9}                                           & 13.8  & 14.1   & 52.95  & 25.45  & 13.4   & 24.15  & 53.9   & 6.95  & 25.5875            \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_3}                                           & 9.9   & 19.45  & 20.25  & 86.2   & 56.2   & 23.65  & 56.15  & 15.05 & 35.85625           \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_5}                                           & 8.3   & 44.95  & 35.65  & 7.55   & 162.7  & 15.0   & 10.9   & 12.4  & 37.18125  \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_2}                                           & 18.75 & 15.8   & 3.6    & 87.85  & 61.2   & 18.25  & 58.75  & 50.6  & 39.35              \\ \hline
-% {\color[HTML]{FE0000}miRNAPairingCount\_Seed\_GC}                                   & 29.4  & 61.3   & 14.05  & 5.1    & 49.35  & 27.45  & 122.7  & 12.4  & 40.21875  \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_6                                           & 31.95 & 85.2   & 65.8   & 21.75  & 102.75 & 16.5   & 57.2   & 17.05 & 49.775             \\ \hline
-% {\color[HTML]{643403} MRNA\_Target\_GG\_comp}                                         & 3.75  & 100.55 & 113.8  & 16.0   & 204.25 & 4.8    & 1.1    & 4.85  & 56.1375  \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_4}                                           & 16.8  & 1.3    & 11.85  & 27.7   & 54.8   & 15.75  & 318.0  & 10.95 & 57.14375           \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_7}                                           & 35.55 & 60.75  & 24.45  & 74.55  & 82.45  & 63.05  & 145.3  & 19.65 & 63.21875           \\ \hline
-% {\color[HTML]{FE0000}miRNAPairingCount\_Seed\_AU}                                    & 7.85  & 100.25 & 73.15  & 88.0   & 134.25 & 27.6   & 80.65  & 24.75 & 67.0625            \\ \hline
-% {\color[HTML]{FE0000}miRNAPairingCount\_X3p\_bulge\_nt}                               & 112.2 & 6.7    & 213.55 & 3.0    & 8.5    & 64.2   & 173.6  & 29.7  & 76.43125           \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_11}                                          & 16.1  & 50.55  & 160.1  & 129.8  & 69.5   & 60.0   & 143.1  & 36.65 & 83.225             \\ \hline
-% {\color[HTML]{38FFF8} Seed\_match\_compact\_start  }                                   & 29.15 & 25.65  & 74.7   & 97.7   & 83.65  & 125.25 & 191.95 & 68.45 & 87.0625            \\ \hline
-% {\color[HTML]{FE0000}miRNAPairingCount\_X3p\_AU}                                     & 70.7  & 76.65  & 252.9  & 63.6   & 73.75  & 75.75  & 105.8  & 27.7  & 93.35625           \\ \hline
-% {\color[HTML]{38FFF8} Seed\_match\_compact\_A    }                                     & 22.05 & 19.8   & 18.0   & 55.5   & 359.25 & 141.95 & 120.9  & 17.75 & 94.4  \\ \hline
-% {\color[HTML]{FE0000}miRNAPairingCount\_X3p\_GC}                                      & 80.85 & 63.3   & 75.4   & 25.9   & 76.25  & 104.75 & 242.5  & 90.85 & 94.975  \\ \hline
-% {\color[HTML]{3166FF}miRNAMatchPosition\_12}                                          & 61.8  & 183.4  & 49.55  & 64.0   & 84.55  & 67.6   & 259.55 & 20.55 & 98.875             \\ \hline
-% {\color[HTML]{32CB00}Energy\_MEF\_local\_target\_normalized}                       & 19.25 & 214.15 & 201.7  & 120.85 & 147.65 & 43.75  & 9.3    & 46.55 & 100.4 \\ \hline
-% {\color[HTML]{643403} MRNA\_Target\_C\_comp }                                         & 107.5 & 68.0   & 84.6   & 93.5   & 218.4  & 142.55 & 24.6   & 65.85 & 100.625            \\ \hline
-% \end{tabular}
-% \end{table}
-
-
-% \begin{table}[h!]
-% \caption{Feature importance. The table shows the union of the top 6 features of each dataset, yielding 16 features at total.}
-% \label{tab:feature_importance}
-% \begin{tabular}{|l|l|l|l|l|l|l|l|l|l|}
-% \hline
-% \textbf{Feature/Dataset}                                   & \textbf{ca1} & \textbf{ce1} & \textbf{ce2} & \textbf{h1} & \textbf{h2} & \textbf{h3} & \textbf{m1} & \textbf{m2} & \textbf{mean} \\ \hline
-% {\ul \textbf{miRNAPairingCount\_Seed\_GU}}                 & 225          & 25           & 51           & 25          & 23          & 77          & 12          & 172         & 76            \\ \hline
-% {\ul \textbf{miRNAMatchPosition\_1}}                       & 142          & 23           & 18           & 63          & 14          & 23          & 11          & 147         & 55            \\ \hline
-% miRNAPairingCount\_Total\_GU                               & 94           & 20           & 17           & 89          & 11          & 41          & 15          & 47          & 42            \\ \hline
-% \textit{\textbf{Seed\_match\_compact\_interactions\_2\_7}} & 95           & 9            & 53           & 11          & 10          & 28          & 6           & 31          & 30            \\ \hline
-% Energy\_MEF\_Duplex                                        & 29           & 13           & 6            & 9           & 58          & 14          & 15          & 90          & 29            \\ \hline
-% MRNA\_Target\_G\_comp                                      & 26           & 21           & 6            & 10          & 21          & 25          & 42          & 64          & 27            \\ \hline
-% MRNA\_Target\_GG\_comp                                     & 67           & 6            & 5            & 11          & 4           & 23          & 33          & 45          & 24            \\ \hline
-% \textit{\textbf{miRNAMatchPosition\_4}}                    & 19           & 29           & 11           & 9           & 6           & 12          & 1           & 21          & 13            \\ \hline
-% \textit{\textbf{miRNAMatchPosition\_5}}                    & 27           & 8            & 8            & 13          & 3           & 12          & 12          & 20          & 13            \\ \hline
-% miRNAPairingCount\_X3p\_bulge\_nt                          & 7            & 17           & 3            & 22          & 18          & 7           & 4           & 14          & 12            \\ \hline
-% \textit{\textbf{miRNAPairingCount\_Seed\_GC}}              & 15           & 6            & 13           & 16          & 7           & 10          & 4           & 20          & 11            \\ \hline
-% \textit{\textbf{miRNAMatchPosition\_2}}                    & 18           & 12           & 20           & 6           & 6           & 10          & 6           & 10          & 11            \\ \hline
-% Acc\_P21\_10th                                             & 19           & 5            & 4            & 6           & 14          & 6           & 5           & 11          & 9             \\ \hline
-% Energy\_MEF\_local\_target\_normalized                     & 18           & 3            & 3            & 6           & 5           & 8           & 15          & 10          & 8             \\ \hline
-% miRNAPairingCount\_X3p\_GC                                 & 8            & 8            & 6            & 9           & 16          & 6           & 3           & 8           & 8             \\ \hline
-% \textit{\textbf{Seed\_match\_compact\_mismatch\_inner}}    & 10           & 1            & 8            & 17          & 0           & 10          & 1           & 16          & 8             \\ \hline
-% \end{tabular}
-% \end{table}
-
-
+% % For each dataset, we sorted in descending order,the average feature's gain score over the 20 runs,  features from the top important feature and plot them together.
+% Figure \ref{fig:feature_importance}a reveals that the gain score is decaying very fast. The 6 top features are significantly stronger relative to the rest (Figure \ref{fig:feature_importance} b). We extracted the top 6 features from each dataset into a unified list. The list resulted in a total of 16 features (out of the maximum length of 48),  indicating that there are many shared features among the datasets. We next extracted the gain values of these 16 features from all the datasets and normalized them to the range of (0, 100). We then ordered the features by their mean gain across all datasets (Table \ref{tab:feature_importance}). Notably, features related to the seed region (marked as bold in the table), comprise half of the features in the table. This emphasize the role of the seed region in the formation of miRNA-mRNA interactions. % We marked features related to the seed region, which are half of the feature in the table. 
 
 \begin{table}[h!]
 \caption{Feature importance. The table shows the union of the top 6 features of each dataset, yielding 16 features at total. The values in the table were scaled into the range of (0, 100). For unscaled version of the table, see \nameref{add:figs_tbls}, table 3.}
@@ -792,9 +741,6 @@ Energy\_MEF\_local\_target\_normalized            & 8            & 11           
 \end{table}
 
 
-
-
-
 \begin{figure}[h!]
     \centering
     \subfloat[Full view of datasets' feature importance]{{\includegraphics[width=5cm]{Results/feature_importance_full.pdf} }}%
@@ -803,7 +749,6 @@ Energy\_MEF\_local\_target\_normalized            & 8            & 11           
     \caption{\csentence{Classifiers' feature importance}. The figures show the features' gain score. The features are descending sorted from the top feature (highest gain). Figure (a) shows a full view of the gain plot, and emphasises the gain decay.  Figure (b) is a zoomed view, focusing on the top 20 features.}%
     \label{fig:feature_importance}%
 \end{figure}
-
 
 
 
@@ -816,15 +761,13 @@ First, we used a statistical measure to calculate the distance between the datas
 The statistics information and classification performance allow us to describe methodology for applying rules from organism to organism.
 
 \subsubsection*{Kullback–Leibler divergence}
-We hypothesized that pair of datasets, with similar characteristics, might achieve better results in classifying the interactions of each other. When we looked for a  measure for the level of similarity of pair of datasets, we took into account the fact that classification is a directed task: classifier trained on the first dataset should classify the second dataset. 
-We chose the asymmetric measure Kullback–Leibler (KL) divergence which measures how one probability distribution is different from a second, reference probability distribution. We used the divergence to measure the pairwise distances between every two datasets based on their miRNA seed family distribution.
+We hypothesized that pair of datasets, with similar characteristics, might achieve better results in classifying the interactions of each other. We thus looked for a measure to assess the level of similarity of a pair of datasets, that will take into account the directionality of a classification task: classifier is trained on one dataset is applied to classify a second dataset.
+% When we looked for a  measure for the level of similarity of pair of datasets, we took into account the fact that classification is a directed task: classifier trained on the first dataset should classify the second dataset. 
+We chose the asymmetric measure Kullback–Leibler (KL) divergence which measures how the target's probability distribution is different from the  probability distribution of the source. We used the divergence to measure the pairwise distances between every two datasets based on their miRNA seed family distribution.
 
-% We hypothesized that the datasets' characteristics and the level of similarity between pairs of datasets influences the classification performance of a dataset based on a classifier trained on a different dataset. Since classification is a directed task, we chose the Kullback–Leibler (KL) divergence which is an asymmetric measure. 
-% The KL divergence is a measure of how one probability distribution is different from a second, reference probability distribution. We used the divergence to measure the pairwise distances between every two datasets based on their miRNA seed family distribution.
-Figure \ref{fig:divergence} shows the divergence between every two dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that as expected due to the distance between the organisms, the divergence between \textit{C.elegans } and other datasets is significantly higher than the divergence between other pairs.
 
-% In statistics, the Kullback–Leibler (KL) divergence is a measure of how one probability distribution is different from a second, reference probability distribution. The KL divergence is a positive, asymmetric measure that is equal to zero if and only if the distributions coincides. Here, we use the divergence to measure the distance between the miRNA seed family distribution of the training sets and the miRNA seed family distribution of the datasets it intend to predict (the testing set). 
-% Figure \ref{fig:divergence} shows the divergence between all dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that the divergence between c.elegans and other datasets is significantly higher than the divergence between other pairs.
+Figure \ref{fig:divergence} shows the divergence between every two dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that as expected, due to the distance between the organisms, the divergence between \textit{C.elegans }, both as a target and as a source, and other datasets is significantly higher than the divergence between other pairs.
+
 
 \todo{I would also want to know if the high divergence is because the same seed families have differences in their counts or these are totally different seeds... lets think about a way to show it, it can go to the supplement}
 
@@ -836,7 +779,11 @@ Figure \ref{fig:divergence} shows the divergence between every two dataset pairs
 
 
 \subsubsection*{Classification performance between datasets}
-Having the information about the datasets' characteristics, the distance between the datasets, the performance of a classifier to predict interaction derived from the same datasets it was trained on, and the the list of the shared features between datasets, we were ready to evaluated the performance cross dataset miRNA-target predictions, that is, the performance of a classifier to accurately predict interactions from datasets different from the the one it was trained on. Here, we used all datasets both as training and testing sets, and evaluated all the possible combinations. For each dataset and each training-testing split, we loaded the best xGBoost classifier found in the previous section and used it to predict the rest 7 datasets (Figure \ref{fig:crossdataset}). 
+We were ready to evaluated the performance cross dataset miRNA-target predictions, that is, the performance of a classifier to accurately predict interactions from datasets different from the the one it was trained on.
+We evaluated all possible 56 combinations, considering each dataset both as a training and as testing set. 
+For each dataset, we loaded 20 xGBoost classifiers (corresponding to 20 training-testing splits generated in section \nameref{nameref:indataset}) and used them to classify the rest 7 datasets (Figure \ref{fig:crossdataset}). 
+
+% Having the information about the datasets' characteristics, the distance between the datasets, the performance of a classifier to predict interaction derived from the same datasets it was trained on, and the the list of the shared features between datasets, we were ready to evaluated the performance cross dataset miRNA-target predictions, that is, the performance of a classifier to accurately predict interactions from datasets different from the the one it was trained on. Here, we used all datasets both as training and testing sets, and evaluated all the possible combinations. For each dataset and each training-testing split, we loaded the best xGBoost classifier found in the previous section and used it to predict the rest 7 datasets (Figure \ref{fig:crossdataset}). 
 Analysis of the results show a variance in the classification performance of each pair of datasets. On one hand, the C.elegans performs well inside their own group while they are performing very bad outside it. On the other hand, most of the accuracy results between the rest organisms are above 80\%, which is similar to the accuracy performance of target-prediction algorithms from human to human. The factors influence the accuracy will be discuss in depth in discussion.
 
 % In this section we applied the rules we have learnt from one dataset on different datasets. We used all datasets both as training and testing sets, and evaluated all the possible combinations. For each dataset, we loaded a pre-trained xGBoost model  and used it to predict the rest datasets (Figure \ref{fig:crossdataset}). The results showed in this section, support the hypothesis of the possibility to apply rules from one organism to other. The accuracy results between all the organisms despite c.elegans are above 80\%, similar to the accuracy performance of target-prediction algorithm from human to human. C.elegans perform worse in predicting other organisms or being predicted by them, with prediction performance close to random. we will suggest some explanations in discussion.
@@ -883,6 +830,10 @@ Recent works, especially deep learning based works, suggest classifiers based la
 \subsubsection*{Top important features}
 As said before, the interactions are described by 490 features. We showed that for target prediction task, there is a small group of features which are significantly dominate. We showed that the size of this group is between 5 to 10 features. The dominated features are dataset specific, that is, each classifier corresponding to a dataset, has it own group. Even though, we showed that there is an overlapping between the groups, and the size of the unified group is less than 16. We also showed that half of the top features are related to the seed, which reiterate the significant role of this region in miRNA-target interaction. 
 In this work, we done an preliminary analysis of the top features. Future depth analysis should include performing of advance feature selection techniques. In addition, the analysis of the datasets together should take into account parameters such as the source organism, the examined tissue, the dataset size and etc. 
+
+
+The described analysis is limited due to the variance of the gain between different splits of the same dataset. Even though, it enlights the common features across datsets and the importance of the seed features.
+
 
 \subsection*{In dataset analysis}
 \subsubsection*{Training and testing split} 
@@ -1088,13 +1039,13 @@ First, we searched for the models' optimal hyper parameters. We performed an exh
 % Third, we loaded the 48 best classifiers and used them to evaluate the accuracy results on the testing set. The results shown in Table \ref{tab:self_summary} are the mean and the STD of all the train-test splits.
 
 
-We continued with the xGBoost classifier for calculating detailed performance measurements and for analysis of the feature importance. We calculated 8 widely used performance metrics including accuracy, sensitivity, specificity and precision (Table \ref{tab:measurementinfo}). As before, the mean and the STD for each measure were calculated on all the training-testing splits.
+We continued with the xGBoost classifier for calculating detailed performance measurements and for analysis of the feature importance. We calculated 7 widely used performance metrics including accuracy, sensitivity, specificity and precision (Table \ref{tab:measurementinfo}). As before, the mean and the STD for each measure were calculated on all the training-testing splits.
 
 % The xGBoost classifier provides a scalable, portable and distributed gradient boosting decision trees algorithm. We selected the xGBoost best classifiers to calculate 8 widely used performance metrics including accuracy, sensitivity, specificity and precision (Table \ref{tab:measurementinfo}). The mean and the std of these metrics were calculated on the stratified testing sets using sklearn functions.
 
 
 \subsection*{Identification of the top important features}
-First, we extracted the top features for every dataset as follows. We used the gain metric provided by xGBoost and calculated the average gain of each feature across the 20 different stratified splits. We then sorted the list of features according to the average gain and extracted the features from the top of the list until their score dropped in an order of magnitude.  
+First, we extracted the top features for every dataset as follows. We used the gain metric provided by xGBoost and calculated the average gain of each feature across the 20 different stratified splits. We then sorted the list of features according to the average gain. We observed that the top 6 features are the most dominant (for all datasets), and the gain score of the rest is lower in an order of magnitude. Therefore, we kept only the top 6 features of each datasets.  
 Second, to be able to compare between datasets, we normalized the average gain scores of each dataset to a range of 0-100 (by dividing it by the maximum value and multiplying by 100) . 
 Third, we composed a unified list of the top features from all the datasets and built a table that includes the normalized gain values for every feature (row) in every dataset (column) . Finally, we calculated an average score for each feature across all datasets (last column in the table) and sorted the table in descending order with respect to it (see results table \ref{tab:feature_importance}).
 
