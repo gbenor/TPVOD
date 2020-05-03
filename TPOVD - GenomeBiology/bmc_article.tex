@@ -612,8 +612,8 @@ m2                                & \begin{tabular}[c]{@{}l@{}}0.900 \\ (0.004)\
 % We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 8 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR), false negatives (FNR) and false discoveries (FDR) (Table \ref{tab:measurementinfo}). 
 % For better performance, TPR, TNR should be high (close to 1) and FNR, FPR should be low (close to 0). Moreover, TPR is almost equal to TNR (same rate of true detection) and FPR is almost equal to FNR (same rate of miss-detection), which indicate that all the 8 classifiers (corresponding to each dataset) are balanced.
 We next sought to perform an in-depth performance analysis of the xGBoost classifier since it achieved the highest accuracy across all datasets (Table \ref{tab:self_summary}). Therefore, we calculated 7 widely used performance metrics including accuracy (ACC), sensitivity (TPR: true positive rate), speciﬁcity (TNR: true negative rate), precision (PPV: positive predictive value), negative predictive value (NPV) and the rates of false positives (FPR) and false negatives (FNR) (Table \ref{tab:measurementinfo}). 
-A good classifier performance is characterized by high TPR and TNR (closer to 1) and low FNR and FPR (closer to 0). Moreover, TPR is almost equal to TNR (same rate of true detection) and FPR is almost equal to FNR (same rate of miss-detection), indicating that all  8 classifiers (corresponding to each dataset) are balanced.
-PPV and  NPV describe the precision of the classifier, which is the proportion of the true predictions from all predictions. The value of these measures ranges from 0 (worst) to 1 (ideal). For all datasets, the classifiers achieve rates of 0.83-0.95 indicating that these classifiers are precise.
+A good classifier performance is characterized by high TPR and TNR (closer to 1) and low FNR and FPR (closer to 0). For each dataset, we measured the same true-detection rate (TPR is almost equal to TNR) and the same miss-detection rate (FPR is almost equal to FNR). The true-detection rate, for all datasets, lies in the range of 0.82-0.91 and the miss-detection rate in the range of 0.06-0.19. This indicates that all 8 classifiers (corresponding to each dataset) are balanced and accurate. Even the classifiers for \textit{ca1}, \textit{h1} and \textit{h2}, which we measured relatively lower true-detection rates on, are considered practical for miRNA-target prediction.
+PPV and  NPV describe the precision of the classifier, which is the proportion of the true predictions from all predictions. The value of these measures ranges from 0 (worst) to 1 (ideal). For all datasets, the classifiers achieve rates of 0.83-0.95 indicating that the classifiers are precise.
 
 
 
@@ -716,7 +716,7 @@ Notably, features related to the seed region (marked as bold in the table), comp
 % Figure \ref{fig:feature_importance}a reveals that the gain score is decaying very fast. The 6 top features are significantly stronger relative to the rest (Figure \ref{fig:feature_importance} b). We extracted the top 6 features from each dataset into a unified list. The list resulted in a total of 16 features (out of the maximum length of 48),  indicating that there are many shared features among the datasets. We next extracted the gain values of these 16 features from all the datasets and normalized them to the range of (0, 100). We then ordered the features by their mean gain across all datasets (Table \ref{tab:feature_importance}). Notably, features related to the seed region (marked as bold in the table), comprise half of the features in the table. This emphasize the role of the seed region in the formation of miRNA-mRNA interactions. % We marked features related to the seed region, which are half of the feature in the table. 
 
 \begin{table}[h!]
-\caption{Feature importance. The table shows the union of the top 6 features of each dataset, yielding 16 features at total. The values in the table were scaled into the range of (0, 100). For unscaled version of the table, see \nameref{add:figs_tbls}, table 3.}
+\caption{Feature importance. The table shows the union of the top 6 features of each dataset, yielding 16 features at total. The values in the table were normalized to the range of (0, 100). For un-normalized version of the table, see \nameref{add:figs_tbls}, table 3.}
 \label{tab:feature_importance}
 \begin{tabular}{|l|l|l|l|l|l|l|l|l|l|}
 \hline
@@ -768,8 +768,6 @@ We chose the asymmetric measure Kullback–Leibler (KL) divergence which measure
 
 Figure \ref{fig:divergence} shows the divergence between every two dataset pairs. The divergence of a dataset with itself is zero, and usually the divergences between datasets within the same organisms are lower than the divergences between different organisms. Note that as expected, due to the distance between the organisms, the divergence between \textit{C.elegans }, both as a target and as a source, and other datasets is significantly higher than the divergence between other pairs.
 
-
-\todo{I would also want to know if the high divergence is because the same seed families have differences in their counts or these are totally different seeds... lets think about a way to show it, it can go to the supplement}
 
 \begin{figure}[h!]
   \caption{\csentence{Kullback–Leibler divergence.} Each cell represents the divergence between the source and the target datasets, based on their miRNA seed family distributions}
